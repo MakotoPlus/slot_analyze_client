@@ -1,0 +1,6 @@
+{
+  "/login/page": "app/login/page.js",
+  "/compare/model/page": "app/compare/model/page.js",
+  "/compare/store/page": "app/compare/store/page.js",
+  "/compare/unit/page": "app/compare/unit/page.js"
+}
