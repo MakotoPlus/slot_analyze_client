@@ -2,7 +2,7 @@
 // バックエンド未起動でも画面を確認できるようにするための開発用。
 // 形は DRF の serializers.py と同じ。
 
-import type { Payout, SlotModel, Store } from '@/types/api';
+import type { Dimension, Payout, SlotModel, Store, SummaryDaily, SummarySeries } from '@/types/api';
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
@@ -71,4 +71,57 @@ export function mockPayouts(dateFrom: string, dateTo: string): Payout[] {
     }
   }
   return out;
+}
+
+const modelById = new Map(mockSlotModels.map((m) => [m.id, m]));
+const storeById = new Map(mockStores.map((s) => [s.id, s]));
+
+/**
+ * バックエンドの GET /scraping/summary/（店舗/機種/台 単位で日別に Payout を集計するAPI）を
+ * モックモードで再現する。実APIと同じ SummarySeries[] を返すことで、集計結果を消費する側の
+ * コード（toCompareResult）をモックと実APIで共通化できる。
+ */
+export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: string): SummarySeries[] {
+  const groups = new Map<string, { label: string; sub: string; days: Map<string, SummaryDaily & { units: Set<string> }> }>();
+
+  for (const p of mockPayouts(dateFrom, dateTo)) {
+    const model = modelById.get(p.slot_model);
+    if (!model) continue;
+    const store = storeById.get(model.store);
+
+    const { key, label, sub } =
+      dimension === 'store'
+        ? { key: `store:${model.store}`, label: store?.store_name ?? '', sub: '' }
+        : dimension === 'model'
+        ? { key: `model:${model.id}`, label: model.slot_model_name, sub: store?.store_name ?? '' }
+        : { key: `unit:${model.id}:${p.slot_num}`, label: `${model.slot_model_name} #${p.slot_num}`, sub: p.slot_num };
+
+    let group = groups.get(key);
+    if (!group) {
+      group = { label, sub, days: new Map() };
+      groups.set(key, group);
+    }
+    const day = p.operational_day.slice(0, 10);
+    let d = group.days.get(day);
+    if (!d) {
+      d = { day, payout_result: 0, game_total: 0, bb_num: 0, rb_num: 0, art_num: 0, unit_count: 0, units: new Set() };
+      group.days.set(day, d);
+    }
+    d.payout_result = (d.payout_result ?? 0) + (p.payout_result ?? 0);
+    d.game_total = (d.game_total ?? 0) + (p.game_total ?? 0);
+    d.bb_num = (d.bb_num ?? 0) + (p.bb_num ?? 0);
+    d.rb_num = (d.rb_num ?? 0) + (p.rb_num ?? 0);
+    d.art_num = (d.art_num ?? 0) + (p.art_num ?? 0);
+    d.units.add(p.slot_num);
+    d.unit_count = d.units.size;
+  }
+
+  return [...groups.entries()].map(([key, g]) => ({
+    key,
+    label: g.label,
+    sub: g.sub,
+    daily: [...g.days.values()]
+      .sort((a, b) => (a.day < b.day ? -1 : 1))
+      .map(({ units, ...rest }) => rest),
+  }));
 }

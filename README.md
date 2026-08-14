@@ -21,19 +21,8 @@ npm run dev          # http://localhost:3000
 SimpleJWT。`/login` でトークンを取得し、`/compare` 配下は `AuthGuard` で保護される。
 API 呼び出しは `Authorization: Bearer <access>` を付与し、401 なら refresh して 1 度だけ再試行する。
 
-バックエンド側に以下の登録が必要（現状 `scraping/urls.py` は `TokenRefreshView` を import しているだけで未登録）:
-
-```python
-# config/urls.py
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-
-urlpatterns += [
-    path("api/token/", TokenObtainPairView.as_view()),
-    path("api/token/refresh/", TokenRefreshView.as_view()),
-]
-# settings.py: REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] に JWTAuthentication、
-#              DEFAULT_PERMISSION_CLASSES に IsAuthenticated を設定する
-```
+バックエンド側は `config/urls.py` に `api/token/` `api/token/refresh/` が登録済み（`workspace/openapi.yaml` 参照）。
+`docker-compose.yml` の `slot-analyze` サービスは `8083` で公開される（`nginx` 経由なら `8080`）。
 
 ## 画面
 
@@ -48,20 +37,21 @@ urlpatterns += [
 
 ## バックエンドAPI
 
-現状の DRF は `ModelViewSet` のみでフィルタが無いため、クライアントで全件取得→集計している。
-実運用では以下のクエリパラメータ追加を推奨（`django-filter` + 集計エンドポイント）。
+比較画面の集計は `GET /scraping/summary/` に寄せている（`src/hooks/useCompareData.ts`）。
+店舗/機種/台単位の日別集計はすべてバックエンド（`scraping/views/summary_view.py`）で行われ、
+クライアントは対象一覧の取得と、選んだ対象での絞り込み表示だけを行う。
 
 ```
-GET /scraping/slot_model/?store=<id>&is_active=true
-GET /scraping/payout/?operational_day__gte=YYYY-MM-DD&operational_day__lte=YYYY-MM-DD
-                     &slot_model__in=1,2,3&slot_num__in=101,103&page_size=1000
-# 望ましい集計API（サーバ集計にすれば転送量が激減する）
-GET /scraping/summary/?group_by=slot_model|store|slot_num&date_from=&date_to=&ids=
-  -> [{ key, label, sub, daily: [{ day, payout_result, game_total, unit_count }] }]
+GET /scraping/store/                        -- 店舗マスタ（store/model 画面の対象候補）
+GET /scraping/slot_model/                   -- 機種マスタ（store/model 画面の対象候補）
+GET /scraping/summary/?group_by=store|slot_model|slot_num&date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+  -> [{ key, label, sub, daily: [{ day, payout_result, game_total, unit_count, bb_num, rb_num, art_num }] }]
 ```
 
-集計ロジックは `src/lib/aggregate.ts` に集約してあるので、
-サーバ集計に移行する際は `useCompareData` の中身だけ差し替えればよい。
+`group_by=slot_num`（台単位画面）は台のマスタが存在しないため、`ids` 指定なしで叩いた
+`summary` のレスポンスをそのまま対象候補一覧としても利用している。
+レスポンス整形（`SummarySeries[]` → 表・グラフ用の `CompareResult`）は `src/lib/aggregate.ts` の
+`toCompareResult` に集約してあるので、`ids` の絞り込みをサーバ側に寄せるなど拡張する場合はここを触ればよい。
 
 ## 指標
 

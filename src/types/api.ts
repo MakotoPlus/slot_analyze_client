@@ -64,3 +64,24 @@ export interface CompareResult {
   days: string[];
   series: Series[];
 }
+
+/** GET /scraping/summary/ の group_by（サーバー側で店舗/機種/台単位に集計する） */
+export type GroupBy = 'store' | 'slot_model' | 'slot_num';
+
+export interface SummaryDaily {
+  day: string; // YYYY-MM-DD
+  payout_result: number | null;
+  game_total: number | null;
+  unit_count: number;
+  bb_num: number | null;
+  rb_num: number | null;
+  art_num: number | null;
+}
+
+/** GET /scraping/summary/ の1系列（store:<id> / model:<id> / unit:<slot_model_id>:<slot_num>） */
+export interface SummarySeries {
+  key: string;
+  label: string;
+  sub: string;
+  daily: SummaryDaily[];
+}
