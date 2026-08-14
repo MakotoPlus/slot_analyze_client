@@ -121,6 +121,6 @@ jobs:
 
       - name: upload strage
         run: |
-          gcloud storage cp -r ${{ github.workspace }}/build/* ${{ env.COPY_STRAGE_PATH }}/
+          gcloud storage cp -r ${{ github.workspace }}/out/* ${{ env.COPY_STRAGE_PATH }}/
 
 
