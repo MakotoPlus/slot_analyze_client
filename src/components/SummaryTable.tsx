@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { drillHref, sum, peak } from '@/lib/aggregate';
-import { mmdd, num, payoutRate, signClass, signed } from '@/lib/format';
+import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import type { CompareResult, Dimension } from '@/types/api';
 
 interface Props {
@@ -43,7 +43,9 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => <th key={d} className="text-end fw-normal">{mmdd(d)}</th>)}
+              {days.map((d) => (
+                <th key={d} className="text-end fw-normal" style={weekendCellStyle(d)}>{mmdd(d)}</th>
+              ))}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計</th>
               <th className="text-end">台数</th>
               <th className="text-end">{isPayout ? '平均差枚/台' : '平均G/台'}</th>
@@ -82,7 +84,7 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
                     </span>
                   </td>
                   {values.map((v, i) => (
-                    <td key={i} className={`text-end tabular ${isPayout ? signClass(v) : ''}`}>
+                    <td key={i} className={`text-end tabular ${isPayout ? signClass(v) : ''}`} style={weekendCellStyle(days[i])}>
                       {s.unitCount[i] === 0 ? '—' : isPayout ? signed(v) : num(v)}
                     </td>
                   ))}
@@ -102,9 +104,13 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
             <tfoot>
               <tr style={{ borderTop: '2px solid #e6e7e9' }}>
                 <td className="sc-sticky fw-bold">全体</td>
-                {days.map((_, i) => {
+                {days.map((d, i) => {
                   const v = series.reduce((a, s) => a + s.payoutResult[i], 0);
-                  return <td key={i} className={`text-end tabular fw-bold ${signClass(v)}`}>{signed(v)}</td>;
+                  return (
+                    <td key={i} className={`text-end tabular fw-bold ${signClass(v)}`} style={weekendCellStyle(d)}>
+                      {signed(v)}
+                    </td>
+                  );
                 })}
                 <td className="text-end" colSpan={4} />
               </tr>

@@ -1,6 +1,7 @@
 body { margin: 0; background: #f6f7f9; }
 .sc-sticky { position: sticky; left: 0; background: inherit; z-index: 1; }
 table.table td, table.table th { white-space: nowrap; }
+.table-responsive thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* ---- モバイル: サイドバーはドロワー、表は横スクロール ---- */

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { drillHref, sum } from '@/lib/aggregate';
-import { mmdd, num, payoutRate, signClass, signed } from '@/lib/format';
+import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import type { CompareResult, Dimension } from '@/types/api';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
@@ -24,7 +24,9 @@ export function RateTable({ targetLabel, result, dimension }: { targetLabel: str
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => <th key={d} className="text-end fw-normal">{mmdd(d)}</th>)}
+              {days.map((d) => (
+                <th key={d} className="text-end fw-normal" style={weekendCellStyle(d)}>{mmdd(d)}</th>
+              ))}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計回転数</th>
               <th className="text-end">合計差枚</th>
               <th className="text-end">期間出玉率</th>
@@ -51,9 +53,13 @@ export function RateTable({ targetLabel, result, dimension }: { targetLabel: str
                       </span>
                     </span>
                   </td>
-                  {days.map((_, i) => {
+                  {days.map((d, i) => {
                     const r = payoutRate(s.payoutResult[i], s.gameTotal[i]);
-                    return <td key={i} className={`text-end tabular ${rateClass(r)}`}>{fmt(r)}</td>;
+                    return (
+                      <td key={i} className={`text-end tabular ${rateClass(r)}`} style={weekendCellStyle(d)}>
+                        {fmt(r)}
+                      </td>
+                    );
                   })}
                   <td className="text-end tabular" style={{ borderLeft: '2px solid #e6e7e9' }}>{num(totalG)}</td>
                   <td className={`text-end tabular ${signClass(totalS)}`}>{signed(totalS)}</td>
