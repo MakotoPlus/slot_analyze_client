@@ -25,13 +25,12 @@ function weekendBg(day: string): string | undefined {
 
 /**
  * 土日の列に付与するセルスタイル。
- * table-striped は縞模様を box-shadow(inset) + CSS変数 --tblr-table-accent-bg で描画しており、
- * 単純な background だけだと縞模様に上書きされてしまうため、その変数ごと上書きする。
+ * 縞模様側は globals.css で box-shadow を使わない background-color 方式にしてあるので、
+ * ここも単純な backgroundColor だけで縞模様より優先される。
  */
 export function weekendCellStyle(day: string): CSSProperties | undefined {
   const bg = weekendBg(day);
-  if (!bg) return undefined;
-  return { background: bg, '--tblr-table-accent-bg': bg } as CSSProperties;
+  return bg ? { backgroundColor: bg } : undefined;
 }
 
 export function dateRange(from: string, to: string, max = 62): string[] {
