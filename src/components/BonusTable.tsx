@@ -1,7 +1,7 @@
 'use client';
 
 import { sum } from '@/lib/aggregate';
-import { mmdd, num } from '@/lib/format';
+import { mmdd, num, weekendCellStyle } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
 
 const prob = (games: number, count: number) => (count > 0 ? `1/${Math.round(games / count)}` : '—');
@@ -20,7 +20,9 @@ export function BonusTable({ result }: { result: CompareResult }) {
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>台</th>
-              {days.map((d) => <th key={d} className="text-end fw-normal">{mmdd(d)}</th>)}
+              {days.map((d) => (
+                <th key={d} className="text-end fw-normal" style={weekendCellStyle(d)}>{mmdd(d)}</th>
+              ))}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>BIG計</th>
               <th className="text-end">REG計</th>
               <th className="text-end">ART計</th>
@@ -46,8 +48,8 @@ export function BonusTable({ result }: { result: CompareResult }) {
                       </span>
                     </span>
                   </td>
-                  {days.map((_, i) => (
-                    <td key={i} className="text-end tabular">
+                  {days.map((d, i) => (
+                    <td key={i} className="text-end tabular" style={weekendCellStyle(d)}>
                       {s.unitCount[i] === 0 ? '—' : `${s.bbNum[i]} / ${s.rbNum[i]} / ${s.artNum[i]}`}
                     </td>
                   ))}

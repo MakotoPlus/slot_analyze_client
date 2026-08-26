@@ -1,6 +1,6 @@
 name: GCP Deploy
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 on:
  push:
@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v5
         id: setup_node_id
         with:
           # node-version: 18
@@ -30,7 +30,7 @@ jobs:
             echo "MY_STAGE=prd">> $GITHUB_ENV
             echo "SERVICE_NAME=slot-analyze-prd" >> $GITHUB_ENV
             echo "SERVICE_STAGE_NAME=/slot-analyze-front-prd" >> $GITHUB_ENV
-            echo "COPY_STRAGE_PATH=gs://slot-analyze-prd-frontend" >> $GITHUB_ENV
+            echo "COPY_STRAGE_PATH=gs://slot-analyze-front-prd" >> $GITHUB_ENV
             # echo "REACT_APP_AES_KEY=${{ secrets.PRD_REACT_APP_AES_KEY }}" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_BASE_URL=${{ vars.PRD_NEXT_PUBLIC_API_BASE_URL }}" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_BASE_URL=${{ vars.PRD_NEXT_PUBLIC_API_BASE_URL }}" > .env.production
@@ -38,18 +38,17 @@ jobs:
             echo "MY_STAGE=stg">> $GITHUB_ENV
             echo "SERVICE_NAME=slot-analyze-stg" >> $GITHUB_ENV
             echo "SERVICE_STAGE_NAME=/slot-analyze-front-stg" >> $GITHUB_ENV
-            echo "COPY_STRAGE_PATH=gs://slot-analyze-stg-frontend" >> $GITHUB_ENV
+            echo "COPY_STRAGE_PATH=gs://slot-analyze-front-stg" >> $GITHUB_ENV
             # echo "REACT_APP_AES_KEY=${{ secrets.STG_REACT_APP_AES_KEY }}" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_BASE_URL=${{ vars.STG_NEXT_PUBLIC_API_BASE_URL }}" >> $GITHUB_ENV
             echo "NEXT_PUBLIC_API_BASE_URL=${{ vars.STG_NEXT_PUBLIC_API_BASE_URL }}" > .env.production
           fi
 
       - name: Checkout Environment Value
-        run: >
+        run: |
             echo MY_STAGE=$MY_STAGE
             echo SERVICE_NAME ${{ env.SERVICE_NAME}}
             echo SERVICE_STAGE_NAME ${{ env.SERVICE_STAGE_NAME}}
-            # echo NEXT_PUBLIC_API_BASE_URL ${{ env.NEXT_PUBLIC_API_BASE_URL}}
             echo NEXT_PUBLIC_API_BASE_URL ${{ env.NEXT_PUBLIC_API_BASE_URL}}
 
       - name: Cat .env.production
@@ -88,7 +87,7 @@ jobs:
       # WARNING は無視するよう CI: False設定
       # CI = False Warning無視
       - name: build
-        run: npm run build --verbose -- --verbose
+        run: npm run build
         env:
           # NEXT_PUBLIC_API_BASE_URL: ${{ env.NEXT_PUBLIC_API_BASE_URL }}
           NEXT_PUBLIC_API_BASE_URL: ${{ env.NEXT_PUBLIC_API_BASE_URL }}
@@ -115,12 +114,12 @@ jobs:
         run: cat .env.production
 
       - name: GCP login
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@v3"
         with:
           credentials_json: "${{ secrets.GCP_KEY }}"
 
       - name: upload strage
         run: |
-          gcloud storage cp -r ${{ github.workspace }}/build/* ${{ env.COPY_STRAGE_PATH }}/
+          gcloud storage cp -r ${{ github.workspace }}/out/* ${{ env.COPY_STRAGE_PATH }}/
 
 
