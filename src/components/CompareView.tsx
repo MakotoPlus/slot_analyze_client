@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BonusTable } from './BonusTable';
+import { CardList } from './CardList';
 import { GameTotalChart, PayoutTrendChart } from './CompareCharts';
 import { RateTable } from './RateTable';
 import { FilterPanel } from './FilterPanel';
@@ -141,11 +142,23 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
 
         {result.series.length > 0 && (
           <>
-            <SummaryTable
-              title="日別 合計差枚数"
+            <div className="sc-desktop-only d-flex flex-column" style={{ gap: 16 }}>
+              <SummaryTable
+                title="日別 合計差枚数"
+                targetLabel={meta.label}
+                result={result}
+                metric="payout"
+                dimension={dimension}
+                checkable={chartCheckable}
+                checkedKeys={chartCheckedKeys}
+                onToggleCheck={toggleChartKey}
+                onUncheckAll={uncheckAllChart}
+              />
+              <RateTable targetLabel={meta.label} result={result} dimension={dimension} />
+            </div>
+            <CardList
               targetLabel={meta.label}
               result={result}
-              metric="payout"
               dimension={dimension}
               checkable={chartCheckable}
               checkedKeys={chartCheckedKeys}
@@ -153,7 +166,6 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
               onUncheckAll={uncheckAllChart}
             />
             <PayoutTrendChart result={result} filterKeys={chartCheckable ? chartCheckedKeys : undefined} />
-            <RateTable targetLabel={meta.label} result={result} dimension={dimension} />
             {dimension === 'unit' && <BonusTable result={result} />}
             <SummaryTable title="日別 合計累計ゲーム数" targetLabel={meta.label} result={result} metric="game" dimension={dimension} />
             <GameTotalChart result={result} filterKeys={chartCheckable ? chartCheckedKeys : undefined} />

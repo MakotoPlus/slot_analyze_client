@@ -104,7 +104,7 @@ export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: stri
     const day = p.operational_day.slice(0, 10);
     let d = group.days.get(day);
     if (!d) {
-      d = { day, payout_result: 0, game_total: 0, bb_num: 0, rb_num: 0, art_num: 0, unit_count: 0, units: new Set() };
+      d = { day, payout_result: 0, game_total: 0, bb_num: 0, rb_num: 0, art_num: 0, unit_count: 0, payout_max: 0, units: new Set() };
       group.days.set(day, d);
     }
     d.payout_result = (d.payout_result ?? 0) + (p.payout_result ?? 0);
@@ -112,6 +112,7 @@ export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: stri
     d.bb_num = (d.bb_num ?? 0) + (p.bb_num ?? 0);
     d.rb_num = (d.rb_num ?? 0) + (p.rb_num ?? 0);
     d.art_num = (d.art_num ?? 0) + (p.art_num ?? 0);
+    d.payout_max = Math.max(d.payout_max ?? 0, p.payout_max ?? 0);
     d.units.add(p.slot_num);
     d.unit_count = d.units.size;
   }
