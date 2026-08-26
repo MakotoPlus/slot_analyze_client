@@ -1,106 +1,87 @@
-import type { CompareResult, Dimension, Payout, SlotModel, Store } from '@/types/api';
-import { PALETTE, dateRange } from './format';
+import type { CompareResult, Dimension, SlotModel, Store, SummarySeries } from '@/types/api';
+import { PALETTE } from './format';
 
-/** 対象（＝表の行 / グラフの1系列）の候補 */
+/**
+ * 対象（＝表の行 / グラフの1系列）の候補。key は /scraping/summary/ が返す key と同じ形式。
+ * groupId は「1つ下位の粒度へドリルダウンする際にどの親に属すか」を表す（例: 機種の groupId は店舗 id）。
+ */
 export interface Target {
   key: string;
   label: string;
   sub: string;
-  /** この対象に属する payout かどうか */
-  match: (p: Payout) => boolean;
+  groupId?: number;
 }
 
-export function buildTargets(
-  dimension: Dimension,
-  stores: Store[],
-  models: SlotModel[],
-  payouts: Payout[],
-): Target[] {
+/** store / model 単位の対象候補一覧（店舗・機種マスタから作る。期間内のデータ有無は問わない） */
+export function catalogTargets(dimension: 'store' | 'model', stores: Store[], models: SlotModel[]): Target[] {
   const storeById = new Map(stores.map((s) => [s.id, s]));
-  const modelById = new Map(models.map((m) => [m.id, m]));
 
   if (dimension === 'store') {
-    return stores.map((s) => {
-      const modelIds = new Set(models.filter((m) => m.store === s.id).map((m) => m.id));
-      return {
-        key: `store:${s.id}`,
-        label: s.store_name,
-        sub: `${modelIds.size}機種`,
-        match: (p) => modelIds.has(p.slot_model),
-      };
-    });
+    return stores.map((s) => ({
+      key: `store:${s.id}`,
+      label: s.store_name,
+      sub: `${models.filter((m) => m.store === s.id).length}機種`,
+    }));
   }
 
-  if (dimension === 'unit') {
-    const seen = new Map<string, Payout>();
-    for (const p of payouts) {
-      const k = `${p.slot_model}:${p.slot_num}`;
-      if (!seen.has(k)) seen.set(k, p);
-    }
-    return [...seen.entries()].map(([key, p]) => {
-      const m = modelById.get(p.slot_model);
-      const store = m ? storeById.get(m.store) : undefined;
-      return {
-        key: `unit:${key}`,
-        label: `${m?.slot_model_name ?? p.slot_model} #${p.slot_num}`,
-        sub: store?.store_name ?? '',
-        match: (x) => x.slot_model === p.slot_model && x.slot_num === p.slot_num,
-      };
-    });
-  }
-
-  return models.map((m) => ({
+  // 紐づく store の id 昇順 → 機種 id 降順
+  const sortedModels = [...models].sort((a, b) => a.store - b.store || b.id - a.id);
+  return sortedModels.map((m) => ({
     key: `model:${m.id}`,
     label: m.slot_model_name,
     sub: storeById.get(m.store)?.store_name ?? '',
-    match: (p) => p.slot_model === m.id,
+    groupId: m.store,
   }));
 }
 
-/** 選択された対象 × 日付 で差枚・ゲーム数・台数を集計する */
-export function aggregate(
-  targets: Target[],
-  payouts: Payout[],
-  dateFrom: string,
-  dateTo: string,
-): CompareResult {
-  const days = dateRange(dateFrom, dateTo);
+/** 店舗→機種、機種→台 のドリルダウン先 URL（末端の台にはドリルダウン先が無いので null） */
+export function drillHref(dimension: Dimension, key: string, dateFrom: string, dateTo: string): string | null {
+  const [kind, id] = key.split(':');
+  const qs = `parentId=${id}&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+  if (dimension === 'store' && kind === 'store') return `/compare/model?${qs}`;
+  if (dimension === 'model' && kind === 'model') return `/compare/unit?${qs}`;
+  return null;
+}
+
+/** /scraping/summary/ のレスポンス（対象 × 日別）を表・グラフ用の CompareResult に変換する */
+export function toCompareResult(days: string[], series: SummarySeries[]): CompareResult {
   const dayIndex = new Map(days.map((d, i) => [d, i]));
 
-  const series = targets.map((t, i) => {
-    const payoutResult = new Array<number>(days.length).fill(0);
-    const gameTotal = new Array<number>(days.length).fill(0);
-    const bbNum = new Array<number>(days.length).fill(0);
-    const rbNum = new Array<number>(days.length).fill(0);
-    const artNum = new Array<number>(days.length).fill(0);
-    const units = days.map(() => new Set<string>());
+  return {
+    days,
+    series: series.map((s, i) => {
+      const payoutResult = new Array<number>(days.length).fill(0);
+      const gameTotal = new Array<number>(days.length).fill(0);
+      const bbNum = new Array<number>(days.length).fill(0);
+      const rbNum = new Array<number>(days.length).fill(0);
+      const artNum = new Array<number>(days.length).fill(0);
+      const unitCount = new Array<number>(days.length).fill(0);
 
-    for (const p of payouts) {
-      const idx = dayIndex.get(p.operational_day.slice(0, 10));
-      if (idx === undefined || !t.match(p)) continue;
-      payoutResult[idx] += p.payout_result ?? 0;
-      gameTotal[idx] += p.game_total ?? 0;
-      bbNum[idx] += p.bb_num ?? 0;
-      rbNum[idx] += p.rb_num ?? 0;
-      artNum[idx] += p.art_num ?? 0;
-      units[idx].add(p.slot_num);
-    }
+      for (const d of s.daily) {
+        const idx = dayIndex.get(d.day);
+        if (idx === undefined) continue;
+        payoutResult[idx] = d.payout_result ?? 0;
+        gameTotal[idx] = d.game_total ?? 0;
+        bbNum[idx] = d.bb_num ?? 0;
+        rbNum[idx] = d.rb_num ?? 0;
+        artNum[idx] = d.art_num ?? 0;
+        unitCount[idx] = d.unit_count;
+      }
 
-    return {
-      key: t.key,
-      label: t.label,
-      sub: t.sub,
-      color: PALETTE[i % PALETTE.length],
-      payoutResult,
-      gameTotal,
-      unitCount: units.map((s) => s.size),
-      bbNum,
-      rbNum,
-      artNum,
-    };
-  });
-
-  return { days, series };
+      return {
+        key: s.key,
+        label: s.label,
+        sub: s.sub,
+        color: PALETTE[i % PALETTE.length],
+        payoutResult,
+        gameTotal,
+        unitCount,
+        bbNum,
+        rbNum,
+        artNum,
+      };
+    }),
+  };
 }
 
 export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
