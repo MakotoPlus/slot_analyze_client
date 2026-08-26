@@ -26,3 +26,47 @@ table.table td, table.table th { white-space: nowrap; }
   .sc-sticky { min-width: 132px !important; }
   table.table td, table.table th { font-size: 11.5px !important; padding: .4rem .45rem !important; }
 }
+
+/*
+ * 台単位「合計差枚数」「出玉率」の横スクロール表は、スマホでは日付列が多すぎて見づらいため、
+ * 対象ごとにタップで開閉するカード表示（CardList）に切り替える。PC では今まで通り表のまま。
+ */
+.sc-mobile-only { display: none; }
+@media (max-width: 820px) {
+  .sc-desktop-only { display: none !important; }
+  .sc-mobile-only { display: block; }
+}
+
+.sc-cardlist { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.sc-card { border: 1px solid #e6e7e9; border-radius: 10px; overflow: hidden; background: #fff; }
+.sc-card-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 10px; border: none; background: none; text-align: left;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.sc-card-swatch { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.sc-card-id { flex: 1; min-width: 0; }
+.sc-card-id .name { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-card-id .name a { color: inherit; text-decoration: none; }
+.sc-card-id .sub { display: block; font-size: 11px; color: #626976; }
+.sc-spark { flex: 0 0 auto; width: 52px; height: 24px; }
+.sc-card-stat { flex: 0 0 auto; text-align: right; min-width: 62px; }
+.sc-card-stat .total { font-size: 13.5px; font-weight: 700; }
+.sc-card-stat .chip {
+  display: inline-block; margin-top: 2px; font-size: 10.5px; font-weight: 700;
+  padding: 1px 6px; border-radius: 100px;
+}
+.sc-card-stat .chip.good { color: #2fb344; background: #e8f7ea; }
+.sc-card-stat .chip.bad { color: #d63939; background: #fbeaea; }
+.sc-chev { flex: 0 0 auto; width: 13px; height: 13px; color: #9aa1ad; transition: transform .15s ease; }
+.sc-card.open .sc-chev { transform: rotate(180deg); }
+
+.sc-card-days { border-top: 1px solid #e6e7e9; }
+.sc-day-head, .sc-day-row { display: flex; align-items: center; padding: 5px 12px 5px 18px; font-size: 11.5px; gap: 6px; }
+.sc-day-head { padding-top: 6px; padding-bottom: 3px; font-size: 9.5px; font-weight: 600; color: #9aa1ad; }
+.sc-day-head .d, .sc-day-row .d { flex: 0 0 auto; width: 56px; color: #626976; }
+.sc-day-head .m, .sc-day-row .m { flex: 0 0 auto; width: 52px; text-align: right; color: #626976; }
+.sc-day-head .p, .sc-day-row .p { flex: 0 0 auto; width: 56px; text-align: right; font-weight: 600; }
+.sc-day-head .r, .sc-day-row .r { flex: 1; text-align: right; color: #626976; }
+.sc-day-total { display: flex; justify-content: flex-end; gap: 12px; padding: 7px 12px; border-top: 1px solid #e6e7e9; background: #fbfbfc; font-size: 10.5px; color: #626976; }
+.sc-day-total b { font-size: 11.5px; color: #1a2233; }

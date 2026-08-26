@@ -56,6 +56,7 @@ export function toCompareResult(days: string[], series: SummarySeries[]): Compar
       const rbNum = new Array<number>(days.length).fill(0);
       const artNum = new Array<number>(days.length).fill(0);
       const unitCount = new Array<number>(days.length).fill(0);
+      const payoutMax = new Array<number>(days.length).fill(0);
 
       for (const d of s.daily) {
         const idx = dayIndex.get(d.day);
@@ -66,6 +67,7 @@ export function toCompareResult(days: string[], series: SummarySeries[]): Compar
         rbNum[idx] = d.rb_num ?? 0;
         artNum[idx] = d.art_num ?? 0;
         unitCount[idx] = d.unit_count;
+        payoutMax[idx] = d.payout_max ?? 0;
       }
 
       return {
@@ -79,6 +81,7 @@ export function toCompareResult(days: string[], series: SummarySeries[]): Compar
         bbNum,
         rbNum,
         artNum,
+        payoutMax,
       };
     }),
   };

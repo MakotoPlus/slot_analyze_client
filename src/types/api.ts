@@ -58,6 +58,7 @@ export interface Series {
   bbNum: number[];        // 日別 BIG回数
   rbNum: number[];        // 日別 REG回数
   artNum: number[];       // 日別 ART回数
+  payoutMax: number[];    // 日別 最高枚数
 }
 
 export interface CompareResult {
@@ -76,6 +77,7 @@ export interface SummaryDaily {
   bb_num: number | null;
   rb_num: number | null;
   art_num: number | null;
+  payout_max: number | null;
 }
 
 /** GET /scraping/summary/ の1系列（store:<id> / model:<id> / unit:<slot_model_id>:<slot_num>） */
