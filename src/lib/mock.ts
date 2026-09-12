@@ -2,7 +2,7 @@
 // バックエンド未起動でも画面を確認できるようにするための開発用。
 // 形は DRF の serializers.py と同じ。
 
-import type { Dimension, Payout, SlotModel, Store, SummaryDaily, SummarySeries } from '@/types/api';
+import type { Dimension, Payout, SlotModel, Store, SummaryDaily, SummarySeries, TopPayoutRecord } from '@/types/api';
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
@@ -125,4 +125,37 @@ export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: stri
       .sort((a, b) => (a.day < b.day ? -1 : 1))
       .map(({ units, ...rest }) => rest),
   }));
+}
+
+/**
+ * バックエンドの GET /scraping/top10/（台 × 日の生レコードを店舗名・機種名付きで返すAPI）を
+ * モックモードで再現する。TOP10 の抽出自体はクライアント側（Top10View）で行うため、
+ * ここでは生データをそのまま返す。`storeId` が指定されている場合はその店舗のレコードのみ返す
+ * （実APIでは `store_id` クエリパラメータでサーバ側絞り込みする想定）。
+ */
+export function mockTop10Records(dateFrom: string, dateTo: string, storeId?: number): TopPayoutRecord[] {
+  return mockPayouts(dateFrom, dateTo).flatMap((p) => {
+    const model = modelById.get(p.slot_model);
+    if (!model) return [];
+    if (storeId !== undefined && model.store !== storeId) return [];
+    const store = storeById.get(model.store);
+    const bbRb = (p.bb_num ?? 0) + (p.rb_num ?? 0);
+    return [{
+      store_name: store?.store_name ?? '',
+      slot_model_name: model.slot_model_name,
+      slot_model: model.id,
+      slot_num: p.slot_num,
+      operational_day: p.operational_day,
+      game_total: p.game_total ?? 0,
+      bb_num: p.bb_num ?? 0,
+      rb_num: p.rb_num ?? 0,
+      art_num: p.art_num ?? 0,
+      payout_max: p.payout_max ?? 0,
+      bb_rb_probability: bbRb > 0 ? bbRb / (p.game_total ?? 1) : 0,
+      payout_result: p.payout_result ?? 0,
+      payout_result_pic: p.payout_result_pic,
+      updated_at: p.updated_at,
+      is_active: true,
+    }];
+  });
 }
