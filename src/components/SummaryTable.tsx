@@ -26,7 +26,10 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
 
   return (
     <div className="card">
-      <div className="card-body d-flex align-items-center justify-content-between" style={{ padding: '14px 16px 8px' }}>
+      <div className="card-body d-flex align-items-center" style={{ padding: '14px 16px 8px', gap: 12 }}>
+        {checkable && (
+          <button type="button" className="btn btn-sm" onClick={onUncheckAll}>全解除</button>
+        )}
         <div>
           <span style={{ fontWeight: 600, fontSize: 14 }}>{title}</span>
           <span className="text-muted ms-2" style={{ fontSize: 12 }}>行＝{targetLabel}／列＝稼働日</span>
@@ -34,9 +37,6 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
             <span className="text-muted ms-2" style={{ fontSize: 12 }}>（チェックした{targetLabel}のみ下の折れ線・棒グラフに表示）</span>
           )}
         </div>
-        {checkable && (
-          <button type="button" className="btn btn-sm" onClick={onUncheckAll}>全解除</button>
-        )}
       </div>
       <div className="table-responsive" style={{ maxHeight: '38vh' }}>
         <table className="table table-sm table-vcenter card-table table-striped">

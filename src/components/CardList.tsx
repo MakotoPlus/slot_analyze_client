@@ -81,14 +81,14 @@ export function CardList({ targetLabel, result, dimension, checkable, checkedKey
 
   return (
     <div className="card sc-mobile-only">
-      <div className="card-body d-flex align-items-center justify-content-between" style={{ padding: '14px 16px 8px' }}>
+      <div className="card-body d-flex align-items-center" style={{ padding: '14px 16px 8px', gap: 12 }}>
+        {checkable && (
+          <button type="button" className="btn btn-sm" onClick={onUncheckAll}>全解除</button>
+        )}
         <div>
           <span style={{ fontWeight: 600, fontSize: 14 }}>日別 差枚・出玉率</span>
           <span className="text-muted ms-2" style={{ fontSize: 12 }}>{targetLabel}をタップで日別内訳</span>
         </div>
-        {checkable && (
-          <button type="button" className="btn btn-sm" onClick={onUncheckAll}>全解除</button>
-        )}
       </div>
 
       <div className="sc-cardlist">
