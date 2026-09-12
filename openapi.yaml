@@ -1,0 +1,522 @@
+openapi: 3.0.3
+info:
+  title: Slot Analyze API (slot-analyze-client 利用分)
+  version: "0.1.0"
+  description: |
+    `slot-analyze-client`（このReactアプリ、Next.js 14）が実際に呼び出しているAPIをコードから
+    棚卸しして作成した仕様書です。バックエンド本体のリポジトリ（`MakotoPlus/slot_analyze`）ではなく、
+    **フロントエンドが期待している契約** を起点にドキュメント化しています。
+
+    - 認証まわり（`/api/token/`, `/api/token/refresh/`）と `/scraping/store/`, `/scraping/slot_model/`,
+      `/scraping/summary/` はすでに実装済みで、実際に叩いて動作しています。
+    - `/scraping/top10/` は TOP10分析画面のために新しく必要になったエンドポイントで、
+      **現時点ではモック（`src/lib/mock.ts`）でのみ動作**しており、バックエンド未実装です。
+      レスポンス形は依頼時にもらったJSON例を反映しています。
+  contact:
+    name: fukupee
+  license:
+    name: Proprietary
+    url: https://github.com/MakotoPlus/slot_analyze_client
+
+servers:
+  - url: http://localhost:8000
+    description: ローカル開発（NEXT_PUBLIC_API_BASE_URL のデフォルト）
+  - url: https://slot-analyze-service-stg-453115489588.asia-northeast1.run.app
+    description: stg
+
+tags:
+  - name: auth
+    description: SimpleJWT によるログイン・トークン更新
+  - name: master
+    description: 店舗・機種マスタ（対象候補の一覧取得に使用）
+  - name: summary
+    description: 店舗/機種/台単位の日別集計（比較画面3種の主データ）
+  - name: top10
+    description: 差枚TOP10分析（未実装・モックのみ）
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/token/:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: ログイン（アクセストークン・リフレッシュトークン取得）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 認証成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          description: ユーザーIDまたはパスワードが誤り
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/token/refresh/:
+    post:
+      operationId: refreshToken
+      tags: [auth]
+      summary: アクセストークンの再発行
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh]
+              properties:
+                refresh:
+                  type: string
+      responses:
+        '200':
+          description: 再発行成功（`access` は必須。ROTATE_REFRESH_TOKENS 設定時は `refresh` も返る）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          description: refresh トークンが無効・期限切れ（クライアントはこの場合ログアウトして /login へ遷移する）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /scraping/store/:
+    get:
+      operationId: listStores
+      tags: [master]
+      summary: 店舗マスタ一覧
+      description: |
+        店舗単位サマリ・機種単位サマリ・TOP10分析の対象候補（店舗リスト）として使う。
+        クライアントは `apiGetAll` で `page_size=1000` を付けて叩き、DRFのページネーション
+        （`{count,next,previous,results}`）・非ページネーション（配列そのまま）の両対応で
+        `next` が無くなるまで全件取得する。
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 店舗一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /scraping/slot_model/:
+    get:
+      operationId: listSlotModels
+      tags: [master]
+      summary: 機種マスタ一覧
+      description: 機種単位サマリの対象候補、および店舗単位サマリの「N機種」表示・ドリルダウンの親子関係付けに使う。
+      parameters:
+        - name: is_active
+          in: query
+          description: 稼働中の機種のみに絞り込む（クライアントは常に `true` を指定）
+          schema:
+            type: string
+            enum: ['true', 'false']
+          example: 'true'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 機種一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotModelListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /scraping/summary/:
+    get:
+      operationId: getSummary
+      tags: [summary]
+      summary: 店舗/機種/台単位の日別集計
+      description: |
+        店舗単位・機種単位・台単位サマリ比較画面（`/compare/store` `/compare/model` `/compare/unit`）の
+        主データ。集計（差枚・G数・BIG/REG/ART・最高枚数の日別合計、台数のユニーク数）は
+        すべてサーバ側で行い、クライアントは `ids` による絞り込みを行わず期間内の対象を丸ごと
+        取得して、選択された対象だけを画面に出す（選択切り替えのたびの再フェッチを避けるため）。
+
+        `group_by=slot_num`（台単位画面）は台のマスタが存在しないため、このレスポンスをそのまま
+        対象候補一覧としても流用している。
+      parameters:
+        - name: group_by
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [store, slot_model, slot_num]
+          description: |
+            集計粒度。`store`=店舗単位, `slot_model`=機種単位, `slot_num`=台単位。
+        - name: date_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2026-08-30'
+        - name: date_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2026-09-12'
+      responses:
+        '200':
+          description: 対象（店舗/機種/台）ごとの日別集計シリーズ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SummarySeries'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /scraping/top10/:
+    get:
+      operationId: listTop10Records
+      tags: [top10]
+      summary: 台×日の生レコード一覧（TOP10抽出用）
+      description: |
+        **未実装（現状はフロントのモックのみで動作）**。
+
+        TOP10分析画面（`/compare/top10`）が使う。順位そのものはAPIが持たず、`store_id`で
+        絞り込んだ指定期間内の全レコードを返すだけで、日付ごとの差枚TOP10抽出・機種別TOP10入り
+        回数の集計はクライアント側（`src/components/Top10View.tsx`）で行う。
+        画面の店舗選択は1つだけ（ラジオボタン）なので、`store_id`は単一の値。
+      parameters:
+        - name: date_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2026-08-30'
+        - name: date_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: '2026-09-12'
+        - name: store_id
+          in: query
+          required: true
+          description: 対象店舗（Store.id）。画面は単一選択のためこの値も単数。
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: 台×日の生レコード一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopPayoutRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        `Authorization: Bearer <access>` を付与する。401が返った場合、クライアントは
+        `/api/token/refresh/` で1度だけ再試行し、それでも失敗したらログアウトして /login へ遷移する。
+
+  parameters:
+    PageSize:
+      name: page_size
+      in: query
+      description: クライアントは全件取得のため常に 1000 を指定する
+      schema:
+        type: integer
+        default: 1000
+      example: 1000
+
+  responses:
+    Unauthorized:
+      description: |
+        アクセストークンが無効・期限切れ。クライアントは `/api/token/refresh/` で1度だけ
+        再試行し、それでも失敗したらログアウトして /login へ遷移する。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: demo
+        password:
+          type: string
+          format: password
+          example: demo
+
+    TokenPair:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required: [access]
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+
+    Store:
+      type: object
+      description: 店舗マスタ（DRF `serializers.py` の Store と1:1）
+      required: [id, store_name, hp_url, updated_at]
+      properties:
+        id:
+          type: integer
+          example: 1
+        store_name:
+          type: string
+          example: 大宮楽園
+        hp_url:
+          type: string
+          format: uri
+          example: https://example.com/1
+        updated_at:
+          type: string
+          format: date-time
+
+    SlotModel:
+      type: object
+      description: 機種マスタ（DRF `serializers.py` の SlotModel と1:1）
+      required: [id, slot_model_name, slot_model_keyword, store, updated_at]
+      properties:
+        id:
+          type: integer
+          example: 105
+        slot_model_name:
+          type: string
+          example: 大宮楽園 北斗の拳
+        slot_model_keyword:
+          type: string
+          example: 北斗の拳
+        store:
+          type: integer
+          description: 紐づく Store.id
+          example: 1
+        max_payout_url:
+          type: string
+          format: uri
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+
+    StoreListResponse:
+      description: 非ページネーション（配列）またはDRFページネーション（`Paginated`）のいずれか
+      oneOf:
+        - type: array
+          items:
+            $ref: '#/components/schemas/Store'
+        - allOf:
+            - $ref: '#/components/schemas/PaginatedEnvelope'
+            - type: object
+              properties:
+                results:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Store'
+
+    SlotModelListResponse:
+      description: 非ページネーション（配列）またはDRFページネーション（`Paginated`）のいずれか
+      oneOf:
+        - type: array
+          items:
+            $ref: '#/components/schemas/SlotModel'
+        - allOf:
+            - $ref: '#/components/schemas/PaginatedEnvelope'
+            - type: object
+              properties:
+                results:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SlotModel'
+
+    PaginatedEnvelope:
+      type: object
+      description: DRF PageNumberPagination の共通部分（`results` は各レスポンスで型付けする）
+      required: [count, next, previous, results]
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items: {}
+
+    SummaryDaily:
+      type: object
+      description: 対象1件・1日分の集計
+      required: [day, unit_count]
+      properties:
+        day:
+          type: string
+          format: date
+          example: '2026-09-01'
+        payout_result:
+          type: integer
+          nullable: true
+          description: その日の合計差枚
+          example: -1028
+        game_total:
+          type: integer
+          nullable: true
+          description: その日の合計ゲーム数
+          example: 4349
+        unit_count:
+          type: integer
+          description: その日にデータのある台数（ユニーク数）
+          example: 5
+        bb_num:
+          type: integer
+          nullable: true
+        rb_num:
+          type: integer
+          nullable: true
+        art_num:
+          type: integer
+          nullable: true
+        payout_max:
+          type: integer
+          nullable: true
+          description: その日の（対象内での）最高枚数
+
+    SummarySeries:
+      type: object
+      description: |
+        1対象（店舗 or 機種 or 台）分の日別集計シリーズ。
+        `key` は `store:<id>` / `model:<id>` / `unit:<slot_model_id>:<slot_num>` の形式。
+      required: [key, label, sub, daily]
+      properties:
+        key:
+          type: string
+          example: 'model:105'
+        label:
+          type: string
+          description: 表示名（店舗名 / 機種名 / "機種名 #台番号"）
+          example: 大宮楽園 北斗の拳
+        sub:
+          type: string
+          description: 補足表示（店舗の場合は "N機種"、機種/台の場合は店舗名）
+          example: 大宮楽園
+        daily:
+          type: array
+          items:
+            $ref: '#/components/schemas/SummaryDaily'
+
+    TopPayoutRecord:
+      type: object
+      description: |
+        台×日の生レコード（店舗名・機種名を結合済み）。順位フィールドは無く、
+        クライアント側で `payout_result` 降順に並べて日付ごとにTOP10を抽出する。
+      required:
+        - store_name
+        - slot_model_name
+        - slot_model
+        - slot_num
+        - operational_day
+        - game_total
+        - bb_num
+        - rb_num
+        - art_num
+        - payout_max
+        - bb_rb_probability
+        - payout_result
+        - updated_at
+        - is_active
+      properties:
+        store_name:
+          type: string
+          example: 大宮楽園
+        slot_model_name:
+          type: string
+          example: 大宮楽園 北斗の拳
+        slot_model:
+          type: integer
+          description: SlotModel.id
+          example: 123
+        slot_num:
+          type: string
+          example: '105'
+        operational_day:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00Z'
+        game_total:
+          type: integer
+          example: 4500
+        bb_num:
+          type: integer
+          example: 12
+        rb_num:
+          type: integer
+          example: 8
+        art_num:
+          type: integer
+          example: 3
+        payout_max:
+          type: integer
+          example: 2500
+        bb_rb_probability:
+          type: number
+          format: float
+          description: (bb_num + rb_num) / game_total
+          example: 0.006666666666666667
+        payout_result:
+          type: integer
+          example: 1200
+        payout_result_pic:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.com/pic.jpg
+        updated_at:
+          type: string
+          format: date-time
+          example: '2024-01-01T12:00:00Z'
+        is_active:
+          type: boolean
+          example: true

@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BonusTable } from './BonusTable';
@@ -9,10 +8,11 @@ import { CardList } from './CardList';
 import { GameTotalChart, PayoutTrendChart } from './CompareCharts';
 import { RateTable } from './RateTable';
 import { FilterPanel } from './FilterPanel';
+import { FilterSlot } from './FilterSlot';
 import { SummaryTable } from './SummaryTable';
 import { useCompareData } from '@/hooks/useCompareData';
 import { sum } from '@/lib/aggregate';
-import { num, payoutRate, signed } from '@/lib/format';
+import { defaultDateRangeCriteria, num, payoutRate, signed } from '@/lib/format';
 import type { Dimension, SearchCriteria } from '@/types/api';
 
 const META: Record<Dimension, { label: string; title: string; maxSelect: number }> = {
@@ -20,23 +20,6 @@ const META: Record<Dimension, { label: string; title: string; maxSelect: number 
   store: { label: '店舗', title: '店舗単位サマリ比較', maxSelect: 10 },
   unit: { label: '台', title: '台単位サマリ比較', maxSelect: 100 },
 };
-
-function defaultCriteria(): SearchCriteria {
-  const to = new Date();
-  const from = new Date(to.getTime() - 13 * 86400000);
-  return { dateFrom: from.toISOString().slice(0, 10), dateTo: to.toISOString().slice(0, 10), ids: [] };
-}
-
-/** Sidebar 内の #filter-slot に検索パネルを差し込む */
-function FilterSlot({ children }: { children: React.ReactNode }) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-  const mounted = useRef(false);
-  useEffect(() => {
-    mounted.current = true;
-    setHost(document.getElementById('filter-slot'));
-  }, []);
-  return host ? createPortal(children, host) : null;
-}
 
 export function CompareView({ dimension }: { dimension: Dimension }) {
   return (
@@ -57,7 +40,7 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
   const [criteria, setCriteria] = useState<SearchCriteria>(() => {
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
-    return dateFrom && dateTo ? { dateFrom, dateTo, ids: [] } : defaultCriteria();
+    return dateFrom && dateTo ? { dateFrom, dateTo, ids: [] } : defaultDateRangeCriteria();
   });
   const [filterVersion, setFilterVersion] = useState(0);
   const { targets, result, isLoading, error } = useCompareData(dimension, criteria);
