@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import type { SearchCriteria } from '@/types/api';
 
 export const num = (n: number) => n.toLocaleString('ja-JP');
 export const signed = (n: number) => (n > 0 ? '+' : '') + n.toLocaleString('ja-JP');
@@ -31,6 +32,13 @@ function weekendBg(day: string): string | undefined {
 export function weekendCellStyle(day: string): CSSProperties | undefined {
   const bg = weekendBg(day);
   return bg ? { backgroundColor: bg } : undefined;
+}
+
+/** デフォルトの検索期間（直近14日）を持つ SearchCriteria */
+export function defaultDateRangeCriteria(): SearchCriteria {
+  const to = new Date();
+  const from = new Date(to.getTime() - 13 * 86400000);
+  return { dateFrom: from.toISOString().slice(0, 10), dateTo: to.toISOString().slice(0, 10), ids: [] };
 }
 
 export function dateRange(from: string, to: string, max = 62): string[] {
