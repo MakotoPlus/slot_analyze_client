@@ -79,18 +79,18 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
   const grandGame = sum(result.series.flatMap((s) => s.gameTotal));
   const rate = payoutRate(grandPayout, grandGame);
 
-  // 機種・台単位サマリでは、チェックを外した対象を差枚推移・累計ゲーム数グラフから除外できる
+  // 機種・台単位サマリでは、チェックした対象だけを差枚推移・累計ゲーム数グラフに表示する（初期状態は全て未チェック）
   const chartCheckable = dimension === 'unit' || dimension === 'model';
-  const [excludedChartKeys, setExcludedChartKeys] = useState<Set<string>>(new Set());
+  const [includedChartKeys, setIncludedChartKeys] = useState<Set<string>>(new Set());
   const toggleChartKey = (key: string) =>
-    setExcludedChartKeys((prev) => {
+    setIncludedChartKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  const chartCheckedKeys = new Set(result.series.filter((s) => !excludedChartKeys.has(s.key)).map((s) => s.key));
-  const uncheckAllChart = () => setExcludedChartKeys(new Set(result.series.map((s) => s.key)));
+  const chartCheckedKeys = new Set(result.series.filter((s) => includedChartKeys.has(s.key)).map((s) => s.key));
+  const uncheckAllChart = () => setIncludedChartKeys(new Set());
 
   return (
     <>
@@ -154,7 +154,14 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
                 onToggleCheck={toggleChartKey}
                 onUncheckAll={uncheckAllChart}
               />
-              <RateTable targetLabel={meta.label} result={result} dimension={dimension} />
+              <RateTable
+                targetLabel={meta.label}
+                result={result}
+                dimension={dimension}
+                checkable={chartCheckable}
+                checkedKeys={chartCheckedKeys}
+                onToggleCheck={toggleChartKey}
+              />
             </div>
             <CardList
               targetLabel={meta.label}

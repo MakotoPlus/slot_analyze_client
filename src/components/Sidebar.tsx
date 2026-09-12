@@ -8,7 +8,6 @@ import { logout } from '@/lib/auth';
 const NAV = [
   { href: '/compare/store', label: '店舗単位サマリ比較' },
   { href: '/compare/model', label: '機種単位サマリ比較' },
-  { href: '/compare/unit', label: '台単位サマリ比較' },
 ];
 
 export function Sidebar() {

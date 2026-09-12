@@ -8,8 +8,18 @@ import type { CompareResult, Dimension } from '@/types/api';
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
 const fmt = (r: number | null) => (r === null ? '—' : r.toFixed(1) + '%');
 
+interface Props {
+  targetLabel: string;
+  result: CompareResult;
+  dimension: Dimension;
+  /** true の場合、行にチェックボックスを表示する（折れ線グラフ表示対象の選択用。日別合計差枚と同じ状態を共有する） */
+  checkable?: boolean;
+  checkedKeys?: Set<string>;
+  onToggleCheck?: (key: string) => void;
+}
+
 /** 回転数 (game_total) と 差枚数 (payout_result) から算出した日別出玉率 */
-export function RateTable({ targetLabel, result, dimension }: { targetLabel: string; result: CompareResult; dimension: Dimension }) {
+export function RateTable({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck }: Props) {
   const { days, series } = result;
   const dateFrom = days[0];
   const dateTo = days[days.length - 1];
@@ -18,6 +28,9 @@ export function RateTable({ targetLabel, result, dimension }: { targetLabel: str
       <div className="card-body" style={{ padding: '14px 16px 8px' }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>日別 出玉率</span>
         <span className="text-muted ms-2" style={{ fontSize: 12 }}>回転数と差枚数から算出（3枚掛け・100%が等価）</span>
+        {checkable && (
+          <span className="text-muted ms-2" style={{ fontSize: 12 }}>（チェックした{targetLabel}のみ下の折れ線・棒グラフに表示）</span>
+        )}
       </div>
       <div className="table-responsive" style={{ maxHeight: '38vh' }}>
         <table className="table table-sm table-vcenter card-table table-striped">
@@ -42,6 +55,15 @@ export function RateTable({ targetLabel, result, dimension }: { targetLabel: str
                 <tr key={s.key}>
                   <td className="sc-sticky">
                     <span className="d-inline-flex align-items-center" style={{ gap: 8 }}>
+                      {checkable && (
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          style={{ flex: '0 0 auto' }}
+                          checked={checkedKeys?.has(s.key) ?? true}
+                          onChange={() => onToggleCheck?.(s.key)}
+                        />
+                      )}
                       <span style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flex: '0 0 auto' }} />
                       <span>
                         {href ? (
