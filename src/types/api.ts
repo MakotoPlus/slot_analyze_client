@@ -87,3 +87,22 @@ export interface SummarySeries {
   sub: string;
   daily: SummaryDaily[];
 }
+
+/** GET /scraping/top10/ の1レコード（台 × 日 の生データ。店舗名・機種名は結合済み） */
+export interface TopPayoutRecord {
+  store_name: string;
+  slot_model_name: string;
+  slot_model: number;
+  slot_num: string;
+  operational_day: string; // ISO datetime
+  game_total: number;
+  bb_num: number;
+  rb_num: number;
+  art_num: number;
+  payout_max: number;
+  bb_rb_probability: number;
+  payout_result: number;
+  payout_result_pic: string | null;
+  updated_at: string;
+  is_active: boolean;
+}
