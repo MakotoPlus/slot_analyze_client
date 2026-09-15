@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { drillHref, sum } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
+import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
@@ -77,9 +78,20 @@ export function RateTable({ targetLabel, result, dimension, checkable, checkedKe
                   </td>
                   {days.map((d, i) => {
                     const r = payoutRate(s.payoutResult[i], s.gameTotal[i]);
+                    const pic = dimension === 'unit' ? s.payoutResultPic[i] : null;
                     return (
                       <td key={i} className={`text-end tabular ${rateClass(r)}`} style={weekendCellStyle(d)}>
-                        {fmt(r)}
+                        {pic ? (
+                          <button
+                            type="button"
+                            className="sc-pic-link"
+                            onClick={() => openPayoutImageWindow(pic, `${mmdd(d)} ${s.label}`)}
+                          >
+                            {fmt(r)}
+                          </button>
+                        ) : (
+                          fmt(r)
+                        )}
                       </td>
                     );
                   })}
