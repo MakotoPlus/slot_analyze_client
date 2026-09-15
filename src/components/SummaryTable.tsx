@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { drillHref, sum, peak } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
+import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
 
 interface Props {
@@ -83,11 +84,25 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
                       </span>
                     </span>
                   </td>
-                  {values.map((v, i) => (
-                    <td key={i} className={`text-end tabular ${isPayout ? signClass(v) : ''}`} style={weekendCellStyle(days[i])}>
-                      {s.unitCount[i] === 0 ? '—' : isPayout ? signed(v) : num(v)}
-                    </td>
-                  ))}
+                  {values.map((v, i) => {
+                    const text = s.unitCount[i] === 0 ? '—' : isPayout ? signed(v) : num(v);
+                    const pic = isPayout && dimension === 'unit' ? s.payoutResultPic[i] : null;
+                    return (
+                      <td key={i} className={`text-end tabular ${isPayout ? signClass(v) : ''}`} style={weekendCellStyle(days[i])}>
+                        {pic ? (
+                          <button
+                            type="button"
+                            className="sc-pic-link"
+                            onClick={() => openPayoutImageWindow(pic, `${mmdd(days[i])} ${s.label}`)}
+                          >
+                            {text}
+                          </button>
+                        ) : (
+                          text
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className={`text-end tabular fw-bold ${isPayout ? signClass(total) : ''}`} style={{ borderLeft: '2px solid #e6e7e9' }}>
                     {isPayout ? signed(total) : num(total)}
                   </td>

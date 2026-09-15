@@ -12,6 +12,10 @@ info:
     - `/scraping/top10/` は TOP10分析画面のために新しく必要になったエンドポイントで、
       **現時点ではモック（`src/lib/mock.ts`）でのみ動作**しており、バックエンド未実装です。
       レスポンス形は依頼時にもらったJSON例を反映しています。
+    - `/scraping/summary/` の `daily[].payout_result_pic`（`group_by=slot_num` 時のみ）と
+      `/scraping/top10/` の `payout_result_pic` は、差枚・機械割の値クリックで実績画像を
+      子ウインドウ表示する機能のために追加したフィールドです。
+      **現時点ではモック（`src/lib/mock.ts`）でのみ値が入り、バックエンドは未対応**です。
   contact:
     name: fukupee
   license:
@@ -154,6 +158,10 @@ paths:
 
         `group_by=slot_num`（台単位画面）は台のマスタが存在しないため、このレスポンスをそのまま
         対象候補一覧としても流用している。
+
+        `group_by=slot_num` のときは `daily[].payout_result_pic` にその日の実績画像URLが入る
+        （台単位サマリ比較画面で、差枚・出玉率の値をクリックすると子ウインドウで表示する）。
+        店舗/機種単位は複数台の集計になり代表画像が定まらないため常に null。
       parameters:
         - name: group_by
           in: query
@@ -423,6 +431,14 @@ components:
           type: integer
           nullable: true
           description: その日の（対象内での）最高枚数
+        payout_result_pic:
+          type: string
+          format: uri
+          nullable: true
+          description: |
+            その日の実績画像URL。`group_by=slot_num`（台単位）のときのみ値が入る。
+            店舗/機種単位は複数台の集計で代表画像が定まらないため常に null。
+          example: https://example.com/pic.jpg
 
     SummarySeries:
       type: object
