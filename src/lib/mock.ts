@@ -16,6 +16,10 @@ const hash = (s: string) => {
 };
 const rnd = (s: string) => (hash(s) % 100000) / 100000;
 
+/** 実績画像のモックURL（実装確認用のダミー画像。約1割は「画像なし」を再現するため null にする） */
+const mockPayoutPicUrl = (key: string): string | null =>
+  rnd(key + 'pic') < 0.1 ? null : `https://picsum.photos/seed/${encodeURIComponent(key)}/640/480`;
+
 export const mockStores: Store[] = STORE_NAMES.map((store_name, i) => ({
   id: i + 1, store_name, hp_url: 'https://example.com/' + (i + 1), updated_at: new Date().toISOString(),
 }));
@@ -65,7 +69,7 @@ export function mockPayouts(dateFrom: string, dateTo: string): Payout[] {
         game_total, bb_num, rb_num,
         art_num: Math.round(game_total / (90 + rnd(key + 'a') * 130)),
         payout_max: Math.round(1000 + rnd(key + 'p') * 3000),
-        payout_result, payout_result_pic: null,
+        payout_result, payout_result_pic: mockPayoutPicUrl(key),
         updated_at: new Date().toISOString(),
       });
     }
@@ -104,7 +108,7 @@ export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: stri
     const day = p.operational_day.slice(0, 10);
     let d = group.days.get(day);
     if (!d) {
-      d = { day, payout_result: 0, game_total: 0, bb_num: 0, rb_num: 0, art_num: 0, unit_count: 0, payout_max: 0, units: new Set() };
+      d = { day, payout_result: 0, game_total: 0, bb_num: 0, rb_num: 0, art_num: 0, unit_count: 0, payout_max: 0, payout_result_pic: null, units: new Set() };
       group.days.set(day, d);
     }
     d.payout_result = (d.payout_result ?? 0) + (p.payout_result ?? 0);
@@ -113,6 +117,9 @@ export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: stri
     d.rb_num = (d.rb_num ?? 0) + (p.rb_num ?? 0);
     d.art_num = (d.art_num ?? 0) + (p.art_num ?? 0);
     d.payout_max = Math.max(d.payout_max ?? 0, p.payout_max ?? 0);
+    // 台単位（1台1日1レコード）のときだけ、その台の実績画像をそのまま紐づける。
+    // 店舗/機種単位は複数台の集計になり「代表画像」が定まらないため null のまま。
+    if (dimension === 'unit') d.payout_result_pic = p.payout_result_pic;
     d.units.add(p.slot_num);
     d.unit_count = d.units.size;
   }

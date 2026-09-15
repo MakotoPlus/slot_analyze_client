@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { drillHref, peak, sum } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
+import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
 
 const SPARK_W = 52, SPARK_H = 24;
@@ -146,13 +147,19 @@ export function CardList({ targetLabel, result, dimension, checkable, checkedKey
                     const has = s.unitCount[i] > 0;
                     const v = s.payoutResult[i];
                     const dayRate = has ? payoutRate(v, s.gameTotal[i]) : null;
+                    const pic = dimension === 'unit' ? s.payoutResultPic[i] : null;
+                    const payoutText = has ? signed(v) : '—';
+                    const rateText = dayRate === null ? '—' : dayRate.toFixed(1) + '%';
+                    const openPic = () => pic && openPayoutImageWindow(pic, `${mmdd(d)} ${s.label}`);
                     return (
                       <div key={d} className="sc-day-row" style={weekendCellStyle(d)}>
                         <span className="d">{mmdd(d)}</span>
                         <span className="m tabular">{has ? num(s.payoutMax[i]) : '—'}</span>
-                        <span className={`p tabular ${has ? signClass(v) : ''}`}>{has ? signed(v) : '—'}</span>
+                        <span className={`p tabular ${has ? signClass(v) : ''}`}>
+                          {pic ? <button type="button" className="sc-pic-link" onClick={openPic}>{payoutText}</button> : payoutText}
+                        </span>
                         <span className={`r tabular ${dayRate === null ? '' : dayRate >= 100 ? 'text-success' : 'text-danger'}`}>
-                          {dayRate === null ? '—' : dayRate.toFixed(1) + '%'}
+                          {pic ? <button type="button" className="sc-pic-link" onClick={openPic}>{rateText}</button> : rateText}
                         </span>
                       </div>
                     );

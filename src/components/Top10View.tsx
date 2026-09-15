@@ -8,6 +8,7 @@ import { useSlotModels, useStores } from '@/hooks/useCompareData';
 import { useTop10Records } from '@/hooks/useTop10Data';
 import { catalogTargets } from '@/lib/aggregate';
 import { dateRange, defaultDateRangeCriteria, mmdd, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
+import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { SearchCriteria, TopPayoutRecord } from '@/types/api';
 
 const TOP_N = 10;
@@ -25,6 +26,8 @@ export interface Row {
   rate: number | null;
   /** その日のTOP10内での順位（1が最上位） */
   rank: number;
+  /** 実績画像URL（無い場合は null） */
+  pic: string | null;
 }
 
 export function Top10View() {
@@ -73,6 +76,7 @@ function Top10ViewInner() {
           payout: r.payout_result,
           rate: payoutRate(r.payout_result, r.game_total),
           rank: idx + 1,
+          pic: r.payout_result_pic,
         });
       });
     }
@@ -196,16 +200,24 @@ function Top10ViewInner() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedRows.map((r, i) => (
-                      <tr key={`${r.day}-${r.modelName}-${r.slotNum}`}>
-                        <td className="text-end tabular text-muted" style={weekendCellStyle(r.day)}>{i + 1}</td>
-                        <td className="sc-sticky tabular" style={weekendCellStyle(r.day)}>{mmdd(r.day)}</td>
-                        <td style={{ fontSize: 12.5, ...weekendCellStyle(r.day) }}>{r.modelName}</td>
-                        <td className="text-end tabular" style={weekendCellStyle(r.day)}>{r.slotNum}</td>
-                        <td className={`text-end tabular fw-bold ${signClass(r.payout)}`} style={weekendCellStyle(r.day)}>{signed(r.payout)}</td>
-                        <td className="text-end tabular" style={weekendCellStyle(r.day)}>{r.rate === null ? '—' : r.rate.toFixed(1) + '%'}</td>
-                      </tr>
-                    ))}
+                    {sortedRows.map((r, i) => {
+                      const rateText = r.rate === null ? '—' : r.rate.toFixed(1) + '%';
+                      const openPic = () => r.pic && openPayoutImageWindow(r.pic, `${mmdd(r.day)} ${r.modelName} #${r.slotNum}`);
+                      return (
+                        <tr key={`${r.day}-${r.modelName}-${r.slotNum}`}>
+                          <td className="text-end tabular text-muted" style={weekendCellStyle(r.day)}>{i + 1}</td>
+                          <td className="sc-sticky tabular" style={weekendCellStyle(r.day)}>{mmdd(r.day)}</td>
+                          <td style={{ fontSize: 12.5, ...weekendCellStyle(r.day) }}>{r.modelName}</td>
+                          <td className="text-end tabular" style={weekendCellStyle(r.day)}>{r.slotNum}</td>
+                          <td className={`text-end tabular fw-bold ${signClass(r.payout)}`} style={weekendCellStyle(r.day)}>
+                            {r.pic ? <button type="button" className="sc-pic-link" onClick={openPic}>{signed(r.payout)}</button> : signed(r.payout)}
+                          </td>
+                          <td className="text-end tabular" style={weekendCellStyle(r.day)}>
+                            {r.pic ? <button type="button" className="sc-pic-link" onClick={openPic}>{rateText}</button> : rateText}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {sortedRows.length === 0 && (
                       <tr><td colSpan={6} className="text-center text-muted" style={{ padding: 32 }}>該当データがありません</td></tr>
                     )}
