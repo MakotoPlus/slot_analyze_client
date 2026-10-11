@@ -5,6 +5,7 @@ import { drillHref, sum, peak } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
+import { DayHeader, LabelHeader, useDaySort } from './DayHeader';
 
 interface Props {
   title: string;
@@ -20,7 +21,9 @@ interface Props {
 }
 
 export function SummaryTable({ title, targetLabel, result, metric, dimension, checkable, checkedKeys, onToggleCheck, onUncheckAll }: Props) {
-  const { days, series } = result;
+  const { days } = result;
+  const { sort, sortRows, onToggle } = useDaySort(dimension === 'model' || dimension === 'unit');
+  const series = sortRows(result.series, days, (s, i) => (metric === 'payout' ? s.payoutResult[i] : s.gameTotal[i]));
   const isPayout = metric === 'payout';
   const dateFrom = days[0];
   const dateTo = days[days.length - 1];
@@ -43,10 +46,8 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
         <table className="table table-sm table-vcenter card-table table-striped">
           <thead>
             <tr>
-              <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => (
-                <th key={d} className="text-end fw-normal" style={weekendCellStyle(d)}>{mmdd(d)}</th>
-              ))}
+              <LabelHeader label={targetLabel} sort={sort} onToggle={onToggle} />
+              {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計</th>
               <th className="text-end">台数</th>
               <th className="text-end">{isPayout ? '平均差枚/台' : '平均G/台'}</th>
