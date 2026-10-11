@@ -5,7 +5,7 @@ import { drillHref, sum, peak } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
-import { DayHeader, useDaySort } from './DayHeader';
+import { DayHeader, LabelHeader, useDaySort } from './DayHeader';
 
 interface Props {
   title: string;
@@ -46,7 +46,7 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
         <table className="table table-sm table-vcenter card-table table-striped">
           <thead>
             <tr>
-              <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
+              <LabelHeader label={targetLabel} sort={sort} onToggle={onToggle} />
               {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計</th>
               <th className="text-end">台数</th>

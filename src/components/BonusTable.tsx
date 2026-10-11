@@ -3,7 +3,7 @@
 import { sum } from '@/lib/aggregate';
 import { num, weekendCellStyle } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
-import { DayHeader, useDaySort } from './DayHeader';
+import { DayHeader, LabelHeader, useDaySort } from './DayHeader';
 
 const prob = (games: number, count: number) => (count > 0 ? `1/${Math.round(games / count)}` : '—');
 
@@ -23,7 +23,7 @@ export function BonusTable({ result }: { result: CompareResult }) {
         <table className="table table-sm table-vcenter card-table table-striped">
           <thead>
             <tr>
-              <th className="sc-sticky" style={{ minWidth: 210 }}>台</th>
+              <LabelHeader label="台" sort={sort} onToggle={onToggle} />
               {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>BIG計</th>
               <th className="text-end">REG計</th>

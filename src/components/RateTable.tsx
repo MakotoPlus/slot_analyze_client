@@ -5,7 +5,7 @@ import { drillHref, sum } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
-import { DayHeader, useDaySort } from './DayHeader';
+import { DayHeader, LabelHeader, useDaySort } from './DayHeader';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
 const fmt = (r: number | null) => (r === null ? '—' : r.toFixed(1) + '%');
@@ -41,7 +41,7 @@ export function RateTable({ targetLabel, result, dimension, checkable, checkedKe
         <table className="table table-sm table-vcenter card-table table-striped">
           <thead>
             <tr>
-              <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
+              <LabelHeader label={targetLabel} sort={sort} onToggle={onToggle} />
               {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計回転数</th>
               <th className="text-end">合計差枚</th>
