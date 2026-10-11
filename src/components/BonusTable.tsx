@@ -1,19 +1,18 @@
 'use client';
 
-import { reverseDays, sum } from '@/lib/aggregate';
-import { mmdd, num, weekendCellStyle } from '@/lib/format';
+import { sum } from '@/lib/aggregate';
+import { num, weekendCellStyle } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
-import { DayHeader, type DayOrder } from './DayHeader';
+import { DayHeader, useDaySort } from './DayHeader';
 
 const prob = (games: number, count: number) => (count > 0 ? `1/${Math.round(games / count)}` : '—');
 
 /** 台単位専用: BIG / REG / ART の日別回数と確率 */
-export function BonusTable({ result, order, onToggleOrder }: {
-  result: CompareResult;
-  order?: DayOrder;
-  onToggleOrder?: () => void;
-}) {
-  const { days, series } = order === 'desc' ? reverseDays(result) : result;
+export function BonusTable({ result }: { result: CompareResult }) {
+  const { days } = result;
+  const { sort, sortRows, onToggle } = useDaySort(true);
+  // BIG + REG + ART の合計回数でソート
+  const series = sortRows(result.series, days, (s, i) => s.bbNum[i] + s.rbNum[i] + s.artNum[i]);
   return (
     <div className="card">
       <div className="card-body" style={{ padding: '14px 16px 8px' }}>
@@ -25,7 +24,7 @@ export function BonusTable({ result, order, onToggleOrder }: {
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>台</th>
-              {days.map((d) => <DayHeader key={d} day={d} order={order ?? 'asc'} onToggle={onToggleOrder} />)}
+              {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>BIG計</th>
               <th className="text-end">REG計</th>
               <th className="text-end">ART計</th>

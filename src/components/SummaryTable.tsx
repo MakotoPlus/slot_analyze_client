@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { drillHref, reverseDays, sum, peak } from '@/lib/aggregate';
+import { drillHref, sum, peak } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
-import { DayHeader, type DayOrder } from './DayHeader';
+import { DayHeader, useDaySort } from './DayHeader';
 
 interface Props {
   title: string;
@@ -18,15 +18,15 @@ interface Props {
   checkedKeys?: Set<string>;
   onToggleCheck?: (key: string) => void;
   onUncheckAll?: () => void;
-  order?: DayOrder;
-  onToggleOrder?: () => void;
 }
 
-export function SummaryTable({ title, targetLabel, result, metric, dimension, checkable, checkedKeys, onToggleCheck, onUncheckAll, order, onToggleOrder }: Props) {
-  const { days, series } = order === 'desc' ? reverseDays(result) : result;
+export function SummaryTable({ title, targetLabel, result, metric, dimension, checkable, checkedKeys, onToggleCheck, onUncheckAll }: Props) {
+  const { days } = result;
+  const { sort, sortRows, onToggle } = useDaySort(dimension === 'model' || dimension === 'unit');
+  const series = sortRows(result.series, days, (s, i) => (metric === 'payout' ? s.payoutResult[i] : s.gameTotal[i]));
   const isPayout = metric === 'payout';
-  const dateFrom = result.days[0];
-  const dateTo = result.days[result.days.length - 1];
+  const dateFrom = days[0];
+  const dateTo = days[days.length - 1];
 
   return (
     <div className="card">
@@ -47,7 +47,7 @@ export function SummaryTable({ title, targetLabel, result, metric, dimension, ch
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => <DayHeader key={d} day={d} order={order ?? 'asc'} onToggle={onToggleOrder} />)}
+              {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計</th>
               <th className="text-end">台数</th>
               <th className="text-end">{isPayout ? '平均差枚/台' : '平均G/台'}</th>

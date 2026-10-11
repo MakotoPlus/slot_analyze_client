@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { drillHref, reverseDays, sum } from '@/lib/aggregate';
+import { drillHref, sum } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
-import { DayHeader, type DayOrder } from './DayHeader';
+import { DayHeader, useDaySort } from './DayHeader';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
 const fmt = (r: number | null) => (r === null ? '—' : r.toFixed(1) + '%');
@@ -18,15 +18,16 @@ interface Props {
   checkable?: boolean;
   checkedKeys?: Set<string>;
   onToggleCheck?: (key: string) => void;
-  order?: DayOrder;
-  onToggleOrder?: () => void;
 }
 
 /** 回転数 (game_total) と 差枚数 (payout_result) から算出した日別出玉率 */
-export function RateTable({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck, order, onToggleOrder }: Props) {
-  const { days, series } = order === 'desc' ? reverseDays(result) : result;
-  const dateFrom = result.days[0];
-  const dateTo = result.days[result.days.length - 1];
+export function RateTable({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck }: Props) {
+  const { days } = result;
+  const { sort, sortRows, onToggle } = useDaySort(dimension === 'model' || dimension === 'unit');
+  // 日の出玉率でソート（回転数 0 は 0 扱い。台数 0 の日は常に末尾）
+  const series = sortRows(result.series, days, (s, i) => payoutRate(s.payoutResult[i], s.gameTotal[i]) ?? 0);
+  const dateFrom = days[0];
+  const dateTo = days[days.length - 1];
   return (
     <div className="card">
       <div className="card-body" style={{ padding: '14px 16px 8px' }}>
@@ -41,7 +42,7 @@ export function RateTable({ targetLabel, result, dimension, checkable, checkedKe
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => <DayHeader key={d} day={d} order={order ?? 'asc'} onToggle={onToggleOrder} />)}
+              {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計回転数</th>
               <th className="text-end">合計差枚</th>
               <th className="text-end">期間出玉率</th>

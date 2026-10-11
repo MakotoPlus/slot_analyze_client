@@ -6,7 +6,6 @@ import { useSearchParams } from 'next/navigation';
 import { BonusTable } from './BonusTable';
 import { CardList } from './CardList';
 import { GameTotalChart, PayoutTrendChart } from './CompareCharts';
-import type { DayOrder } from './DayHeader';
 import { RateTable } from './RateTable';
 import { FilterPanel } from './FilterPanel';
 import { FilterSlot } from './FilterSlot';
@@ -58,13 +57,6 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
       setFilterVersion((v) => v + 1);
     }
   }, [isLoading, targets, parentId]);
-
-  const [order, setOrder] = useState<DayOrder>('asc');
-  // 日付の昇順/降順切替は機種単位・台単位のみ（グラフは常に昇順）
-  const sortProps =
-    dimension === 'model' || dimension === 'unit'
-      ? { order, onToggleOrder: () => setOrder((o) => (o === 'asc' ? 'desc' : 'asc')) }
-      : {};
 
   const grandPayout = sum(result.series.flatMap((s) => s.payoutResult));
   const grandGame = sum(result.series.flatMap((s) => s.gameTotal));
@@ -144,7 +136,6 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
                 checkedKeys={chartCheckedKeys}
                 onToggleCheck={toggleChartKey}
                 onUncheckAll={uncheckAllChart}
-                {...sortProps}
               />
               <RateTable
                 targetLabel={meta.label}
@@ -153,7 +144,6 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
                 checkable={chartCheckable}
                 checkedKeys={chartCheckedKeys}
                 onToggleCheck={toggleChartKey}
-                {...sortProps}
               />
             </div>
             <CardList
@@ -164,11 +154,10 @@ function CompareViewInner({ dimension }: { dimension: Dimension }) {
               checkedKeys={chartCheckedKeys}
               onToggleCheck={toggleChartKey}
               onUncheckAll={uncheckAllChart}
-              {...sortProps}
             />
             <PayoutTrendChart result={result} filterKeys={chartCheckable ? chartCheckedKeys : undefined} />
-            {dimension === 'unit' && <BonusTable result={result} {...sortProps} />}
-            <SummaryTable title="日別 合計累計ゲーム数" targetLabel={meta.label} result={result} metric="game" dimension={dimension} {...sortProps} />
+            {dimension === 'unit' && <BonusTable result={result} />}
+            <SummaryTable title="日別 合計累計ゲーム数" targetLabel={meta.label} result={result} metric="game" dimension={dimension} />
             <GameTotalChart result={result} filterKeys={chartCheckable ? chartCheckedKeys : undefined} />
           </>
         )}

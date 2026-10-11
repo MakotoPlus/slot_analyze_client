@@ -1,4 +1,4 @@
-import type { CompareResult, Dimension, Series, SlotModel, Store, SummarySeries } from '@/types/api';
+import type { CompareResult, Dimension, SlotModel, Store, SummarySeries } from '@/types/api';
 import { PALETTE } from './format';
 
 /**
@@ -92,15 +92,3 @@ export function toCompareResult(days: string[], series: SummarySeries[]): Compar
 
 export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 export const peak = (xs: number[]) => (xs.length ? Math.max(...xs) : 0);
-
-/** 日付軸（days と各系列の日別配列）を逆順にした結果を返す。日別配列以外のフィールドはそのまま */
-export function reverseDays(result: CompareResult): CompareResult {
-  return {
-    days: [...result.days].reverse(),
-    series: result.series.map((s) => {
-      const out: Record<string, unknown> = { ...s };
-      for (const [k, v] of Object.entries(s)) if (Array.isArray(v)) out[k] = [...v].reverse();
-      return out as unknown as Series;
-    }),
-  };
-}

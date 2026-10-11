@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { drillHref, peak, reverseDays, sum } from '@/lib/aggregate';
+import { drillHref, peak, sum } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
-import type { DayOrder } from './DayHeader';
 import type { CompareResult, Dimension } from '@/types/api';
 
 const SPARK_W = 52, SPARK_H = 24;
@@ -64,15 +63,13 @@ interface Props {
   checkedKeys?: Set<string>;
   onToggleCheck?: (key: string) => void;
   onUncheckAll?: () => void;
-  order?: DayOrder;
-  onToggleOrder?: () => void;
 }
 
 /** スマホ表示専用: 横スクロール表の代わりに対象ごとのカード（タップで日別内訳を展開）で見せる */
-export function CardList({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck, onUncheckAll, order, onToggleOrder }: Props) {
-  const { days, series } = order === 'desc' ? reverseDays(result) : result;
-  const dateFrom = result.days[0];
-  const dateTo = result.days[result.days.length - 1];
+export function CardList({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck, onUncheckAll }: Props) {
+  const { days, series } = result;
+  const dateFrom = days[0];
+  const dateTo = days[days.length - 1];
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
 
   const toggle = (key: string) =>
@@ -141,13 +138,7 @@ export function CardList({ targetLabel, result, dimension, checkable, checkedKey
               {open && (
                 <div className="sc-card-days">
                   <div className="sc-day-head">
-                    <span
-                      className="d"
-                      style={onToggleOrder ? { cursor: 'pointer', userSelect: 'none' } : undefined}
-                      onClick={onToggleOrder}
-                    >
-                      日付{onToggleOrder && (order === 'desc' ? ' ▼' : ' ▲')}
-                    </span>
+                    <span className="d">日付</span>
                     <span className="m">最高枚数</span>
                     <span className="p">差枚</span>
                     <span className="r">出玉率</span>
