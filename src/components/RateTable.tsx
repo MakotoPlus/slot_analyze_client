@@ -5,6 +5,7 @@ import { drillHref, sum } from '@/lib/aggregate';
 import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
 import { openPayoutImageWindow } from '@/lib/imageWindow';
 import type { CompareResult, Dimension } from '@/types/api';
+import { DayHeader, LabelHeader, useDaySort } from './DayHeader';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
 const fmt = (r: number | null) => (r === null ? '—' : r.toFixed(1) + '%');
@@ -21,7 +22,10 @@ interface Props {
 
 /** 回転数 (game_total) と 差枚数 (payout_result) から算出した日別出玉率 */
 export function RateTable({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck }: Props) {
-  const { days, series } = result;
+  const { days } = result;
+  const { sort, sortRows, onToggle } = useDaySort(dimension === 'model' || dimension === 'unit');
+  // 日の出玉率でソート（回転数 0 は 0 扱い。台数 0 の日は常に末尾）
+  const series = sortRows(result.series, days, (s, i) => payoutRate(s.payoutResult[i], s.gameTotal[i]) ?? 0);
   const dateFrom = days[0];
   const dateTo = days[days.length - 1];
   return (
@@ -37,10 +41,8 @@ export function RateTable({ targetLabel, result, dimension, checkable, checkedKe
         <table className="table table-sm table-vcenter card-table table-striped">
           <thead>
             <tr>
-              <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => (
-                <th key={d} className="text-end fw-normal" style={weekendCellStyle(d)}>{mmdd(d)}</th>
-              ))}
+              <LabelHeader label={targetLabel} sort={sort} onToggle={onToggle} />
+              {days.map((d) => <DayHeader key={d} day={d} sort={sort} onToggle={onToggle} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計回転数</th>
               <th className="text-end">合計差枚</th>
               <th className="text-end">期間出玉率</th>
