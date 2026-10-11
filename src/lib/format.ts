@@ -1,3 +1,6 @@
+import type { CSSProperties } from 'react';
+import type { SearchCriteria } from '@/types/api';
+
 export const num = (n: number) => n.toLocaleString('ja-JP');
 export const signed = (n: number) => (n > 0 ? '+' : '') + n.toLocaleString('ja-JP');
 export const signClass = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-danger' : 'text-muted');
@@ -6,7 +9,37 @@ export const signClass = (n: number) => (n > 0 ? 'text-success' : n < 0 ? 'text-
 export const payoutRate = (payoutResult: number, gameTotal: number) =>
   gameTotal > 0 ? (1 + payoutResult / (gameTotal * 3)) * 100 : null;
 
-export const mmdd = (day: string) => day.slice(5).replace('-', '/');
+const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
+
+export const mmdd = (day: string) => {
+  const md = day.slice(5).replace('-', '/');
+  const weekday = WEEKDAY_JA[new Date(day + 'T00:00:00Z').getUTCDay()];
+  return `${md}(${weekday})`;
+};
+
+function weekendBg(day: string): string | undefined {
+  const wd = new Date(day + 'T00:00:00Z').getUTCDay();
+  if (wd === 0) return '#fdecec'; // 日
+  if (wd === 6) return '#eaf2ff'; // 土
+  return undefined;
+}
+
+/**
+ * 土日の列に付与するセルスタイル。
+ * 縞模様側は globals.css で box-shadow を使わない background-color 方式にしてあるので、
+ * ここも単純な backgroundColor だけで縞模様より優先される。
+ */
+export function weekendCellStyle(day: string): CSSProperties | undefined {
+  const bg = weekendBg(day);
+  return bg ? { backgroundColor: bg } : undefined;
+}
+
+/** デフォルトの検索期間（直近14日）を持つ SearchCriteria */
+export function defaultDateRangeCriteria(): SearchCriteria {
+  const to = new Date();
+  const from = new Date(to.getTime() - 13 * 86400000);
+  return { dateFrom: from.toISOString().slice(0, 10), dateTo: to.toISOString().slice(0, 10), ids: [] };
+}
 
 export function dateRange(from: string, to: string, max = 62): string[] {
   const a = Date.parse(from + 'T00:00:00Z');

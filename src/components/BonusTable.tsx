@@ -1,7 +1,7 @@
 'use client';
 
-import { sum } from '@/lib/aggregate';
-import { num } from '@/lib/format';
+import { reverseDays, sum } from '@/lib/aggregate';
+import { mmdd, num, weekendCellStyle } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
 import { DayHeader, type DayOrder } from './DayHeader';
 
@@ -13,7 +13,7 @@ export function BonusTable({ result, order, onToggleOrder }: {
   order?: DayOrder;
   onToggleOrder?: () => void;
 }) {
-  const { days, series } = result;
+  const { days, series } = order === 'desc' ? reverseDays(result) : result;
   return (
     <div className="card">
       <div className="card-body" style={{ padding: '14px 16px 8px' }}>
@@ -51,8 +51,8 @@ export function BonusTable({ result, order, onToggleOrder }: {
                       </span>
                     </span>
                   </td>
-                  {days.map((_, i) => (
-                    <td key={i} className="text-end tabular">
+                  {days.map((d, i) => (
+                    <td key={i} className="text-end tabular" style={weekendCellStyle(d)}>
                       {s.unitCount[i] === 0 ? '—' : `${s.bbNum[i]} / ${s.rbNum[i]} / ${s.artNum[i]}`}
                     </td>
                   ))}

@@ -1,8 +1,10 @@
 'use client';
 
-import { sum, peak } from '@/lib/aggregate';
-import { num, payoutRate, signClass, signed } from '@/lib/format';
-import type { CompareResult } from '@/types/api';
+import Link from 'next/link';
+import { drillHref, reverseDays, sum, peak } from '@/lib/aggregate';
+import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
+import { openPayoutImageWindow } from '@/lib/imageWindow';
+import type { CompareResult, Dimension } from '@/types/api';
 import { DayHeader, type DayOrder } from './DayHeader';
 
 interface Props {
@@ -10,19 +12,35 @@ interface Props {
   targetLabel: string;
   result: CompareResult;
   metric: 'payout' | 'game';
+  dimension: Dimension;
+  /** true の場合、行にチェックボックスを表示する（折れ線グラフ表示対象の選択用） */
+  checkable?: boolean;
+  checkedKeys?: Set<string>;
+  onToggleCheck?: (key: string) => void;
+  onUncheckAll?: () => void;
   order?: DayOrder;
   onToggleOrder?: () => void;
 }
 
-export function SummaryTable({ title, targetLabel, result, metric, order, onToggleOrder }: Props) {
-  const { days, series } = result;
+export function SummaryTable({ title, targetLabel, result, metric, dimension, checkable, checkedKeys, onToggleCheck, onUncheckAll, order, onToggleOrder }: Props) {
+  const { days, series } = order === 'desc' ? reverseDays(result) : result;
   const isPayout = metric === 'payout';
+  const dateFrom = result.days[0];
+  const dateTo = result.days[result.days.length - 1];
 
   return (
     <div className="card">
-      <div className="card-body" style={{ padding: '14px 16px 8px' }}>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>{title}</span>
-        <span className="text-muted ms-2" style={{ fontSize: 12 }}>行＝{targetLabel}／列＝稼働日</span>
+      <div className="card-body d-flex align-items-center" style={{ padding: '14px 16px 8px', gap: 12 }}>
+        {checkable && (
+          <button type="button" className="btn btn-sm" onClick={onUncheckAll}>全解除</button>
+        )}
+        <div>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>{title}</span>
+          <span className="text-muted ms-2" style={{ fontSize: 12 }}>行＝{targetLabel}／列＝稼働日</span>
+          {checkable && (
+            <span className="text-muted ms-2" style={{ fontSize: 12 }}>（チェックした{targetLabel}のみ下の折れ線・棒グラフに表示）</span>
+          )}
+        </div>
       </div>
       <div className="table-responsive" style={{ maxHeight: '38vh' }}>
         <table className="table table-sm table-vcenter card-table table-striped">
@@ -42,22 +60,50 @@ export function SummaryTable({ title, targetLabel, result, metric, order, onTogg
               const total = sum(values);
               const units = peak(s.unitCount);
               const rate = payoutRate(sum(s.payoutResult), sum(s.gameTotal));
+              const href = drillHref(dimension, s.key, dateFrom, dateTo);
               return (
                 <tr key={s.key}>
                   <td className="sc-sticky">
                     <span className="d-inline-flex align-items-center" style={{ gap: 8 }}>
+                      {checkable && (
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          style={{ flex: '0 0 auto' }}
+                          checked={checkedKeys?.has(s.key) ?? true}
+                          onChange={() => onToggleCheck?.(s.key)}
+                        />
+                      )}
                       <span style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flex: '0 0 auto' }} />
                       <span>
-                        <span style={{ display: 'block', fontSize: 12.5 }}>{s.label}</span>
+                        {href ? (
+                          <Link href={href} style={{ display: 'block', fontSize: 12.5 }}>{s.label}</Link>
+                        ) : (
+                          <span style={{ display: 'block', fontSize: 12.5 }}>{s.label}</span>
+                        )}
                         <span className="text-muted" style={{ display: 'block', fontSize: 11 }}>{s.sub}</span>
                       </span>
                     </span>
                   </td>
-                  {values.map((v, i) => (
-                    <td key={i} className={`text-end tabular ${isPayout ? signClass(v) : ''}`}>
-                      {s.unitCount[i] === 0 ? '—' : isPayout ? signed(v) : num(v)}
-                    </td>
-                  ))}
+                  {values.map((v, i) => {
+                    const text = s.unitCount[i] === 0 ? '—' : isPayout ? signed(v) : num(v);
+                    const pic = isPayout && dimension === 'unit' ? s.payoutResultPic[i] : null;
+                    return (
+                      <td key={i} className={`text-end tabular ${isPayout ? signClass(v) : ''}`} style={weekendCellStyle(days[i])}>
+                        {pic ? (
+                          <button
+                            type="button"
+                            className="sc-pic-link"
+                            onClick={() => openPayoutImageWindow(pic, `${mmdd(days[i])} ${s.label}`)}
+                          >
+                            {text}
+                          </button>
+                        ) : (
+                          text
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className={`text-end tabular fw-bold ${isPayout ? signClass(total) : ''}`} style={{ borderLeft: '2px solid #e6e7e9' }}>
                     {isPayout ? signed(total) : num(total)}
                   </td>
@@ -74,9 +120,13 @@ export function SummaryTable({ title, targetLabel, result, metric, order, onTogg
             <tfoot>
               <tr style={{ borderTop: '2px solid #e6e7e9' }}>
                 <td className="sc-sticky fw-bold">全体</td>
-                {days.map((_, i) => {
+                {days.map((d, i) => {
                   const v = series.reduce((a, s) => a + s.payoutResult[i], 0);
-                  return <td key={i} className={`text-end tabular fw-bold ${signClass(v)}`}>{signed(v)}</td>;
+                  return (
+                    <td key={i} className={`text-end tabular fw-bold ${signClass(v)}`} style={weekendCellStyle(d)}>
+                      {signed(v)}
+                    </td>
+                  );
                 })}
                 <td className="text-end" colSpan={4} />
               </tr>

@@ -6,7 +6,7 @@ import { login } from '@/lib/auth';
 
 function LoginForm() {
   const router = useRouter();
-  const next = useSearchParams().get('next') ?? '/compare/model';
+  const next = useSearchParams().get('next') ?? '/compare/store';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

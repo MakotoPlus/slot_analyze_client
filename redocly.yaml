@@ -1,0 +1,7 @@
+extends:
+  - recommended
+rules:
+  # DRF (Django REST Framework) はデフォルトで末尾スラッシュ付きのURLを使うため、この案件では正しい仕様
+  no-path-trailing-slash: off
+  # ローカル開発のデフォルトが localhost:8000 なのは意図通り（.env.local.example 参照）
+  no-server-example.com: off

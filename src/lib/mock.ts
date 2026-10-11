@@ -2,7 +2,7 @@
 // バックエンド未起動でも画面を確認できるようにするための開発用。
 // 形は DRF の serializers.py と同じ。
 
-import type { Payout, SlotModel, Store } from '@/types/api';
+import type { Dimension, Payout, SlotModel, Store, SummaryDaily, SummarySeries, TopPayoutRecord } from '@/types/api';
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
 
@@ -15,6 +15,10 @@ const hash = (s: string) => {
   return h >>> 0;
 };
 const rnd = (s: string) => (hash(s) % 100000) / 100000;
+
+/** 実績画像のモックURL（実装確認用のダミー画像。約1割は「画像なし」を再現するため null にする） */
+const mockPayoutPicUrl = (key: string): string | null =>
+  rnd(key + 'pic') < 0.1 ? null : `https://picsum.photos/seed/${encodeURIComponent(key)}/640/480`;
 
 export const mockStores: Store[] = STORE_NAMES.map((store_name, i) => ({
   id: i + 1, store_name, hp_url: 'https://example.com/' + (i + 1), updated_at: new Date().toISOString(),
@@ -65,10 +69,100 @@ export function mockPayouts(dateFrom: string, dateTo: string): Payout[] {
         game_total, bb_num, rb_num,
         art_num: Math.round(game_total / (90 + rnd(key + 'a') * 130)),
         payout_max: Math.round(1000 + rnd(key + 'p') * 3000),
-        payout_result, payout_result_pic: null,
+        payout_result, payout_result_pic: mockPayoutPicUrl(key),
         updated_at: new Date().toISOString(),
       });
     }
   }
   return out;
+}
+
+const modelById = new Map(mockSlotModels.map((m) => [m.id, m]));
+const storeById = new Map(mockStores.map((s) => [s.id, s]));
+
+/**
+ * バックエンドの GET /scraping/summary/（店舗/機種/台 単位で日別に Payout を集計するAPI）を
+ * モックモードで再現する。実APIと同じ SummarySeries[] を返すことで、集計結果を消費する側の
+ * コード（toCompareResult）をモックと実APIで共通化できる。
+ */
+export function mockSummary(dimension: Dimension, dateFrom: string, dateTo: string): SummarySeries[] {
+  const groups = new Map<string, { label: string; sub: string; days: Map<string, SummaryDaily & { units: Set<string> }> }>();
+
+  for (const p of mockPayouts(dateFrom, dateTo)) {
+    const model = modelById.get(p.slot_model);
+    if (!model) continue;
+    const store = storeById.get(model.store);
+
+    const { key, label, sub } =
+      dimension === 'store'
+        ? { key: `store:${model.store}`, label: store?.store_name ?? '', sub: '' }
+        : dimension === 'model'
+        ? { key: `model:${model.id}`, label: model.slot_model_name, sub: store?.store_name ?? '' }
+        : { key: `unit:${model.id}:${p.slot_num}`, label: `${model.slot_model_name} #${p.slot_num}`, sub: p.slot_num };
+
+    let group = groups.get(key);
+    if (!group) {
+      group = { label, sub, days: new Map() };
+      groups.set(key, group);
+    }
+    const day = p.operational_day.slice(0, 10);
+    let d = group.days.get(day);
+    if (!d) {
+      d = { day, payout_result: 0, game_total: 0, bb_num: 0, rb_num: 0, art_num: 0, unit_count: 0, payout_max: 0, payout_result_pic: null, units: new Set() };
+      group.days.set(day, d);
+    }
+    d.payout_result = (d.payout_result ?? 0) + (p.payout_result ?? 0);
+    d.game_total = (d.game_total ?? 0) + (p.game_total ?? 0);
+    d.bb_num = (d.bb_num ?? 0) + (p.bb_num ?? 0);
+    d.rb_num = (d.rb_num ?? 0) + (p.rb_num ?? 0);
+    d.art_num = (d.art_num ?? 0) + (p.art_num ?? 0);
+    d.payout_max = Math.max(d.payout_max ?? 0, p.payout_max ?? 0);
+    // 台単位（1台1日1レコード）のときだけ、その台の実績画像をそのまま紐づける。
+    // 店舗/機種単位は複数台の集計になり「代表画像」が定まらないため null のまま。
+    if (dimension === 'unit') d.payout_result_pic = p.payout_result_pic;
+    d.units.add(p.slot_num);
+    d.unit_count = d.units.size;
+  }
+
+  return [...groups.entries()].map(([key, g]) => ({
+    key,
+    label: g.label,
+    sub: g.sub,
+    daily: [...g.days.values()]
+      .sort((a, b) => (a.day < b.day ? -1 : 1))
+      .map(({ units, ...rest }) => rest),
+  }));
+}
+
+/**
+ * バックエンドの GET /scraping/top10/（台 × 日の生レコードを店舗名・機種名付きで返すAPI）を
+ * モックモードで再現する。TOP10 の抽出自体はクライアント側（Top10View）で行うため、
+ * ここでは生データをそのまま返す。`storeId` が指定されている場合はその店舗のレコードのみ返す
+ * （実APIでは `store_id` クエリパラメータでサーバ側絞り込みする想定）。
+ */
+export function mockTop10Records(dateFrom: string, dateTo: string, storeId?: number): TopPayoutRecord[] {
+  return mockPayouts(dateFrom, dateTo).flatMap((p) => {
+    const model = modelById.get(p.slot_model);
+    if (!model) return [];
+    if (storeId !== undefined && model.store !== storeId) return [];
+    const store = storeById.get(model.store);
+    const bbRb = (p.bb_num ?? 0) + (p.rb_num ?? 0);
+    return [{
+      store_name: store?.store_name ?? '',
+      slot_model_name: model.slot_model_name,
+      slot_model: model.id,
+      slot_num: p.slot_num,
+      operational_day: p.operational_day,
+      game_total: p.game_total ?? 0,
+      bb_num: p.bb_num ?? 0,
+      rb_num: p.rb_num ?? 0,
+      art_num: p.art_num ?? 0,
+      payout_max: p.payout_max ?? 0,
+      bb_rb_probability: bbRb > 0 ? bbRb / (p.game_total ?? 1) : 0,
+      payout_result: p.payout_result ?? 0,
+      payout_result_pic: p.payout_result_pic,
+      updated_at: p.updated_at,
+      is_active: true,
+    }];
+  });
 }

@@ -1,26 +1,40 @@
 'use client';
 
-import { sum } from '@/lib/aggregate';
-import { num, payoutRate, signClass, signed } from '@/lib/format';
-import type { CompareResult } from '@/types/api';
+import Link from 'next/link';
+import { drillHref, reverseDays, sum } from '@/lib/aggregate';
+import { mmdd, num, payoutRate, signClass, signed, weekendCellStyle } from '@/lib/format';
+import { openPayoutImageWindow } from '@/lib/imageWindow';
+import type { CompareResult, Dimension } from '@/types/api';
 import { DayHeader, type DayOrder } from './DayHeader';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
 const fmt = (r: number | null) => (r === null ? '—' : r.toFixed(1) + '%');
 
-/** 回転数 (game_total) と 差枚数 (payout_result) から算出した日別出玉率 */
-export function RateTable({ targetLabel, result, order, onToggleOrder }: {
+interface Props {
   targetLabel: string;
   result: CompareResult;
+  dimension: Dimension;
+  /** true の場合、行にチェックボックスを表示する（折れ線グラフ表示対象の選択用。日別合計差枚と同じ状態を共有する） */
+  checkable?: boolean;
+  checkedKeys?: Set<string>;
+  onToggleCheck?: (key: string) => void;
   order?: DayOrder;
   onToggleOrder?: () => void;
-}) {
-  const { days, series } = result;
+}
+
+/** 回転数 (game_total) と 差枚数 (payout_result) から算出した日別出玉率 */
+export function RateTable({ targetLabel, result, dimension, checkable, checkedKeys, onToggleCheck, order, onToggleOrder }: Props) {
+  const { days, series } = order === 'desc' ? reverseDays(result) : result;
+  const dateFrom = result.days[0];
+  const dateTo = result.days[result.days.length - 1];
   return (
     <div className="card">
       <div className="card-body" style={{ padding: '14px 16px 8px' }}>
         <span style={{ fontWeight: 600, fontSize: 14 }}>日別 出玉率</span>
         <span className="text-muted ms-2" style={{ fontSize: 12 }}>回転数と差枚数から算出（3枚掛け・100%が等価）</span>
+        {checkable && (
+          <span className="text-muted ms-2" style={{ fontSize: 12 }}>（チェックした{targetLabel}のみ下の折れ線・棒グラフに表示）</span>
+        )}
       </div>
       <div className="table-responsive" style={{ maxHeight: '38vh' }}>
         <table className="table table-sm table-vcenter card-table table-striped">
@@ -38,20 +52,49 @@ export function RateTable({ targetLabel, result, order, onToggleOrder }: {
               const totalG = sum(s.gameTotal);
               const totalS = sum(s.payoutResult);
               const total = payoutRate(totalS, totalG);
+              const href = drillHref(dimension, s.key, dateFrom, dateTo);
               return (
                 <tr key={s.key}>
                   <td className="sc-sticky">
                     <span className="d-inline-flex align-items-center" style={{ gap: 8 }}>
+                      {checkable && (
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          style={{ flex: '0 0 auto' }}
+                          checked={checkedKeys?.has(s.key) ?? true}
+                          onChange={() => onToggleCheck?.(s.key)}
+                        />
+                      )}
                       <span style={{ width: 9, height: 9, borderRadius: 2, background: s.color, flex: '0 0 auto' }} />
                       <span>
-                        <span style={{ display: 'block', fontSize: 12.5 }}>{s.label}</span>
+                        {href ? (
+                          <Link href={href} style={{ display: 'block', fontSize: 12.5 }}>{s.label}</Link>
+                        ) : (
+                          <span style={{ display: 'block', fontSize: 12.5 }}>{s.label}</span>
+                        )}
                         <span className="text-muted" style={{ display: 'block', fontSize: 11 }}>{s.sub}</span>
                       </span>
                     </span>
                   </td>
-                  {days.map((_, i) => {
+                  {days.map((d, i) => {
                     const r = payoutRate(s.payoutResult[i], s.gameTotal[i]);
-                    return <td key={i} className={`text-end tabular ${rateClass(r)}`}>{fmt(r)}</td>;
+                    const pic = dimension === 'unit' ? s.payoutResultPic[i] : null;
+                    return (
+                      <td key={i} className={`text-end tabular ${rateClass(r)}`} style={weekendCellStyle(d)}>
+                        {pic ? (
+                          <button
+                            type="button"
+                            className="sc-pic-link"
+                            onClick={() => openPayoutImageWindow(pic, `${mmdd(d)} ${s.label}`)}
+                          >
+                            {fmt(r)}
+                          </button>
+                        ) : (
+                          fmt(r)
+                        )}
+                      </td>
+                    );
                   })}
                   <td className="text-end tabular" style={{ borderLeft: '2px solid #e6e7e9' }}>{num(totalG)}</td>
                   <td className={`text-end tabular ${signClass(totalS)}`}>{signed(totalS)}</td>

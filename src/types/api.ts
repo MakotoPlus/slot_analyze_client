@@ -58,9 +58,54 @@ export interface Series {
   bbNum: number[];        // 日別 BIG回数
   rbNum: number[];        // 日別 REG回数
   artNum: number[];       // 日別 ART回数
+  payoutMax: number[];    // 日別 最高枚数
+  payoutResultPic: (string | null)[]; // 日別 実績画像URL（台単位のみ。店舗/機種は集計のため null）
 }
 
 export interface CompareResult {
   days: string[];
   series: Series[];
+}
+
+/** GET /scraping/summary/ の group_by（サーバー側で店舗/機種/台単位に集計する） */
+export type GroupBy = 'store' | 'slot_model' | 'slot_num';
+
+export interface SummaryDaily {
+  day: string; // YYYY-MM-DD
+  payout_result: number | null;
+  game_total: number | null;
+  unit_count: number;
+  bb_num: number | null;
+  rb_num: number | null;
+  art_num: number | null;
+  payout_max: number | null;
+  /** 実績画像URL。台単位（group_by=slot_num）のときのみ値が入る（店舗/機種単位は集計のため null） */
+  payout_result_pic: string | null;
+}
+
+/** GET /scraping/summary/ の1系列（store:<id> / model:<id> / unit:<slot_model_id>:<slot_num>） */
+export interface SummarySeries {
+  key: string;
+  label: string;
+  sub: string;
+  daily: SummaryDaily[];
+}
+
+/** GET /scraping/top10/ の1レコード（台 × 日 の生データ。店舗名・機種名は結合済み） */
+export interface TopPayoutRecord {
+  store_name: string;
+  slot_model_name: string;
+  slot_model: number;
+  slot_num: string;
+  operational_day: string; // ISO datetime
+  game_total: number;
+  bb_num: number;
+  rb_num: number;
+  art_num: number;
+  payout_max: number;
+  bb_rb_probability: number;
+  payout_result: number;
+  payout_result_pic: string | null;
+  updated_at: string;
+  is_active: boolean;
 }
