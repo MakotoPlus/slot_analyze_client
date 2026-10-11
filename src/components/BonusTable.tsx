@@ -1,13 +1,18 @@
 'use client';
 
 import { sum } from '@/lib/aggregate';
-import { mmdd, num } from '@/lib/format';
+import { num } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
+import { DayHeader, type DayOrder } from './DayHeader';
 
 const prob = (games: number, count: number) => (count > 0 ? `1/${Math.round(games / count)}` : '—');
 
 /** 台単位専用: BIG / REG / ART の日別回数と確率 */
-export function BonusTable({ result }: { result: CompareResult }) {
+export function BonusTable({ result, order, onToggleOrder }: {
+  result: CompareResult;
+  order?: DayOrder;
+  onToggleOrder?: () => void;
+}) {
   const { days, series } = result;
   return (
     <div className="card">
@@ -20,7 +25,7 @@ export function BonusTable({ result }: { result: CompareResult }) {
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>台</th>
-              {days.map((d) => <th key={d} className="text-end fw-normal">{mmdd(d)}</th>)}
+              {days.map((d) => <DayHeader key={d} day={d} order={order ?? 'asc'} onToggle={onToggleOrder} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>BIG計</th>
               <th className="text-end">REG計</th>
               <th className="text-end">ART計</th>

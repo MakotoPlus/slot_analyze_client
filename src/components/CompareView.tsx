@@ -1,23 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useEffect, useRef } from 'react';
 import { BonusTable } from './BonusTable';
 import { CompareCharts } from './CompareCharts';
 import { RateTable } from './RateTable';
+import type { DayOrder } from './DayHeader';
 import { FilterPanel } from './FilterPanel';
 import { SummaryTable } from './SummaryTable';
 import { useCompareData } from '@/hooks/useCompareData';
 import { sum } from '@/lib/aggregate';
 import { num, payoutRate, signed } from '@/lib/format';
-import type { Dimension, SearchCriteria } from '@/types/api';
+import type { CompareResult, Dimension, SearchCriteria } from '@/types/api';
 
 const META: Record<Dimension, { label: string; title: string }> = {
   model: { label: '機種', title: '機種単位サマリ比較' },
   store: { label: '店舗', title: '店舗単位サマリ比較' },
   unit: { label: '台', title: '台単位サマリ比較' },
 };
+
+/** 日付軸（days と各系列の日別配列）を逆順にした結果を返す */
+function reverseDays(result: CompareResult): CompareResult {
+  return {
+    days: [...result.days].reverse(),
+    series: result.series.map((s) => ({
+      ...s,
+      payoutResult: [...s.payoutResult].reverse(),
+      gameTotal: [...s.gameTotal].reverse(),
+      unitCount: [...s.unitCount].reverse(),
+      bbNum: [...s.bbNum].reverse(),
+      rbNum: [...s.rbNum].reverse(),
+      artNum: [...s.artNum].reverse(),
+    })),
+  };
+}
 
 function defaultCriteria(): SearchCriteria {
   const to = new Date();
@@ -40,6 +57,17 @@ export function CompareView({ dimension }: { dimension: Dimension }) {
   const meta = META[dimension];
   const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
   const { targets, result, isLoading, error } = useCompareData(dimension, criteria);
+
+  const [order, setOrder] = useState<DayOrder>('asc');
+  // 日付ソートは機種単位・台単位のみ。グラフは常に昇順
+  const sortable = dimension === 'model' || dimension === 'unit';
+  const tableResult = useMemo(
+    () => (sortable && order === 'desc' ? reverseDays(result) : result),
+    [result, order, sortable],
+  );
+  const sortProps = sortable
+    ? { order, onToggleOrder: () => setOrder((o) => (o === 'asc' ? 'desc' : 'asc')) }
+    : {};
 
   const grandPayout = sum(result.series.flatMap((s) => s.payoutResult));
   const grandGame = sum(result.series.flatMap((s) => s.gameTotal));
@@ -95,10 +123,10 @@ export function CompareView({ dimension }: { dimension: Dimension }) {
 
         {result.series.length > 0 && (
           <>
-            <SummaryTable title="日別 合計差枚数" targetLabel={meta.label} result={result} metric="payout" />
-            <SummaryTable title="日別 合計累計ゲーム数" targetLabel={meta.label} result={result} metric="game" />
-            <RateTable targetLabel={meta.label} result={result} />
-            {dimension === 'unit' && <BonusTable result={result} />}
+            <SummaryTable title="日別 合計差枚数" targetLabel={meta.label} result={tableResult} metric="payout" {...sortProps} />
+            <SummaryTable title="日別 合計累計ゲーム数" targetLabel={meta.label} result={tableResult} metric="game" {...sortProps} />
+            <RateTable targetLabel={meta.label} result={tableResult} {...sortProps} />
+            {dimension === 'unit' && <BonusTable result={tableResult} {...sortProps} />}
             <CompareCharts result={result} />
           </>
         )}

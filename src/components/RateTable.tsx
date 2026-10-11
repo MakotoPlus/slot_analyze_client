@@ -1,14 +1,20 @@
 'use client';
 
 import { sum } from '@/lib/aggregate';
-import { mmdd, num, payoutRate, signClass, signed } from '@/lib/format';
+import { num, payoutRate, signClass, signed } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
+import { DayHeader, type DayOrder } from './DayHeader';
 
 const rateClass = (r: number | null) => (r === null ? 'text-muted' : r >= 100 ? 'text-success' : 'text-danger');
 const fmt = (r: number | null) => (r === null ? '—' : r.toFixed(1) + '%');
 
 /** 回転数 (game_total) と 差枚数 (payout_result) から算出した日別出玉率 */
-export function RateTable({ targetLabel, result }: { targetLabel: string; result: CompareResult }) {
+export function RateTable({ targetLabel, result, order, onToggleOrder }: {
+  targetLabel: string;
+  result: CompareResult;
+  order?: DayOrder;
+  onToggleOrder?: () => void;
+}) {
   const { days, series } = result;
   return (
     <div className="card">
@@ -21,7 +27,7 @@ export function RateTable({ targetLabel, result }: { targetLabel: string; result
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => <th key={d} className="text-end fw-normal">{mmdd(d)}</th>)}
+              {days.map((d) => <DayHeader key={d} day={d} order={order ?? 'asc'} onToggle={onToggleOrder} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計回転数</th>
               <th className="text-end">合計差枚</th>
               <th className="text-end">期間出玉率</th>

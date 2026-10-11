@@ -1,17 +1,20 @@
 'use client';
 
 import { sum, peak } from '@/lib/aggregate';
-import { mmdd, num, payoutRate, signClass, signed } from '@/lib/format';
+import { num, payoutRate, signClass, signed } from '@/lib/format';
 import type { CompareResult } from '@/types/api';
+import { DayHeader, type DayOrder } from './DayHeader';
 
 interface Props {
   title: string;
   targetLabel: string;
   result: CompareResult;
   metric: 'payout' | 'game';
+  order?: DayOrder;
+  onToggleOrder?: () => void;
 }
 
-export function SummaryTable({ title, targetLabel, result, metric }: Props) {
+export function SummaryTable({ title, targetLabel, result, metric, order, onToggleOrder }: Props) {
   const { days, series } = result;
   const isPayout = metric === 'payout';
 
@@ -26,7 +29,7 @@ export function SummaryTable({ title, targetLabel, result, metric }: Props) {
           <thead>
             <tr>
               <th className="sc-sticky" style={{ minWidth: 210 }}>{targetLabel}</th>
-              {days.map((d) => <th key={d} className="text-end fw-normal">{mmdd(d)}</th>)}
+              {days.map((d) => <DayHeader key={d} day={d} order={order ?? 'asc'} onToggle={onToggleOrder} />)}
               <th className="text-end" style={{ borderLeft: '2px solid #e6e7e9' }}>合計</th>
               <th className="text-end">台数</th>
               <th className="text-end">{isPayout ? '平均差枚/台' : '平均G/台'}</th>
